@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='brand/icon-32.png') }}">
+  <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='brand/icon-16.png') }}">
+  <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='brand/icon-180-apple-touch.png') }}">
+  <title>{% block title %}LiveVoice Streamer{% endblock %}</title>
+  <script>
+    // Vor dem CSS-Laden anwenden, damit beim Seitenwechsel kein falsches
+    // Theme kurz aufblitzt (FOUC).
+    (function () {
+      try {
+        var stored = localStorage.getItem("theme");
+        if (stored === "light" || stored === "dark") {
+          document.documentElement.setAttribute("data-theme", stored);
+        }
+      } catch (e) { /* localStorage evtl. nicht verfügbar */ }
+    })();
+  </script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <nav class="topnav">
+    <a href="{{ url_for('index') }}" class="brand-link" aria-label="LiveVoice Streamer">
+      <img class="brand-logo brand-logo-light" src="{{ url_for('static', filename='brand/logo-lockup-light.svg') }}" alt="LiveVoice Streamer">
+      <img class="brand-logo brand-logo-dark" src="{{ url_for('static', filename='brand/logo-lockup-dark.svg') }}" alt="LiveVoice Streamer">
+    </a>
+    <div class="nav-tabs">
+      <a href="{{ url_for('index') }}" class="{{ 'active' if request.path == '/' else '' }}">Cockpit</a>
+      <a href="{{ url_for('settings_page') }}"
+         class="btn-icon nav-icon-link {{ 'active' if request.path == '/settings' else '' }}"
+         title="Einstellungen" aria-label="Einstellungen">⚙</a>
+      {% if request.path == '/settings' %}
+        <button type="button" id="btn-reboot" class="btn-secondary btn-icon" title="Neustart" aria-label="Neustart">↻</button>
+        <button type="button" id="btn-poweroff" class="btn-secondary btn-icon" title="Herunterfahren" aria-label="Herunterfahren">⏻</button>
+      {% endif %}
+      <button type="button" id="theme-toggle" class="btn-secondary btn-icon" title="Theme wechseln" aria-label="Theme wechseln">◐</button>
+    </div>
+  </nav>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

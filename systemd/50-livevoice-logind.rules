@@ -1,0 +1,17 @@
+polkit.addRule(function(action, subject) {
+    // Fuers "Herunterfahren"/"Neu starten"-Feature im WebUI (app/system.py,
+    // ruft "systemctl poweroff"/"systemctl reboot" auf - das spricht intern
+    // logind per D-Bus an). Ohne diese Regel lehnt logind die Aktion fuer
+    // den Dienstbenutzer "rec" ab, der keine eigene Login-Session hat.
+    // Die "-multiple-sessions"-Variante wird gefragt, wenn zusaetzlich noch
+    // eine andere Session aktiv ist (z.B. eine offene SSH-Sitzung von
+    // mpadmin) - beide Varianten pauschal erlauben, analog zu den
+    // bestehenden Regeln fuer NetworkManager/udisks2.
+    if ((action.id == "org.freedesktop.login1.power-off" ||
+         action.id == "org.freedesktop.login1.power-off-multiple-sessions" ||
+         action.id == "org.freedesktop.login1.reboot" ||
+         action.id == "org.freedesktop.login1.reboot-multiple-sessions") &&
+        subject.user == "rec") {
+        return polkit.Result.YES;
+    }
+});

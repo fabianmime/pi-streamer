@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}LiveVoice Streamer{% endblock %}
+{% block content %}
+  <section class="card level-meter-card">
+    <div class="level-meter-wrap">
+      {% if cfg_channels == 2 %}
+        <div class="level-meter-row" data-channel="1">
+          <div class="level-meter-label">
+            <span>L</span>
+            <span class="level-meter-db">-</span>
+          </div>
+          <div class="level-meter">
+            <div class="level-meter-fill"></div>
+          </div>
+        </div>
+        <div class="level-meter-row" data-channel="2">
+          <div class="level-meter-label">
+            <span>R</span>
+            <span class="level-meter-db">-</span>
+          </div>
+          <div class="level-meter">
+            <div class="level-meter-fill"></div>
+          </div>
+        </div>
+      {% else %}
+        <div class="level-meter-row" data-channel="1">
+          <div class="level-meter-label">
+            <span>Eingangspegel</span>
+            <span class="level-meter-db">-</span>
+          </div>
+          <div class="level-meter">
+            <div class="level-meter-fill"></div>
+          </div>
+        </div>
+      {% endif %}
+      <p id="level-meter-hint" class="hint" hidden>Kein Eingangssignal erkannt - Gerät angeschlossen?</p>
+    </div>
+    {% if recording_target %}
+      <div class="storage-mini">
+        <span class="storage-mini-label">USB-Speicher (Aufnahme-Ziel)</span>
+        <span id="storage-mini-value">-</span>
+      </div>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h2>Stream</h2>
+    <div class="stream-row">
+      <button id="stream-toggle" class="btn btn-start" disabled>Lade Status...</button>
+      <div id="status-summary" class="status-summary">
+        <span id="status-dot" class="status-dot"></span>
+        <span id="status-text">-</span>
+      </div>
+    </div>
+    <dl class="status-grid">
+      <dt>Laufzeit</dt><dd id="status-uptime">-</dd>
+      <dt>Bitrate</dt><dd id="status-bitrate">-</dd>
+      <dt>Sample-Rate</dt><dd id="status-samplerate">-</dd>
+      <dt>Audio-Gerät</dt><dd id="status-device">-</dd>
+    </dl>
+    <div id="status-error-row" class="error-row" hidden>
+      <p id="status-error" class="error"></p>
+      <button type="button" id="status-error-dismiss" class="error-dismiss" aria-label="Fehler schliessen" title="Fehler schliessen">×</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Aufnahme</h2>
+    <div class="stream-row">
+      <button id="recording-toggle" class="btn btn-start" disabled>Lade Status...</button>
+      <div id="recording-status-summary" class="status-summary">
+        <span id="recording-status-dot" class="status-dot"></span>
+        <span id="recording-status-text">-</span>
+      </div>
+    </div>
+    <dl class="status-grid">
+      <dt>Laufzeit</dt><dd id="recording-status-uptime">-</dd>
+      <dt>Ziel</dt><dd id="recording-status-target">{{ recording_target or "-" }}</dd>
+      <dt>Datei</dt><dd id="recording-status-file">-</dd>
+    </dl>
+    <div id="recording-status-error-row" class="error-row" hidden>
+      <p id="recording-status-error" class="error"></p>
+      <button type="button" id="recording-status-error-dismiss" class="error-dismiss" aria-label="Fehler schliessen" title="Fehler schliessen">×</button>
+    </div>
+    {% if not recording_target %}
+      <p class="hint">Noch kein Aufnahme-Ziel gewählt. Bitte unter
+        <a href="{{ url_for('settings_page') }}">Einstellungen</a> einen USB-Stick auswählen.</p>
+    {% endif %}
+  </section>
+
+  {% if not hide_operator %}
+  <section class="card operator-card">
+    <h2>LiveVoice Operator</h2>
+    {% if operator_url %}
+      <a href="{{ operator_url }}" target="_blank" rel="noopener" class="btn btn-start">
+        Operator in neuem Tab öffnen
+      </a>
+    {% else %}
+      <p class="hint">Noch keine Operator-URL hinterlegt. Bitte unter
+        <a href="{{ url_for('settings_page') }}">Einstellungen</a> eintragen.</p>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  <script type="application/json" id="stream-config-data">
+    {{ {"bitrate_kbps": cfg_bitrate, "sample_rate": cfg_sample_rate, "audio_device": cfg_device} | tojson }}
+  </script>
+{% endblock %}

@@ -1,0 +1,285 @@
+{% extends "base.html" %}
+{% block title %}Einstellungen - LiveVoice Streamer{% endblock %}
+{% block content %}
+  <div class="settings-toolbar">
+    {% if cfg.web_password_set %}
+      <a href="{{ url_for('logout') }}" class="btn btn-secondary">Jetzt abmelden</a>
+    {% endif %}
+    <button type="submit" form="settings-form" class="btn btn-start">Speichern</button>
+  </div>
+
+  {% if saved %}<p class="success">Gespeichert.</p>{% endif %}
+  {% if port_changed %}
+    <p class="success">
+      Port geändert auf {{ new_port }} - der Dienst startet jetzt kurz neu. Danach hier weiter:
+      <a href="http://{{ request.host.split(':')[0] }}:{{ new_port }}/settings">http://{{ request.host.split(':')[0] }}:{{ new_port }}/settings</a>
+    </p>
+  {% endif %}
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+  <form id="settings-form" method="post" action="{{ url_for('save_settings') }}">
+    <section class="card">
+      <h2>System</h2>
+      <div class="stat-row" id="system-stats">
+        <div class="stat-tile">
+          <span class="stat-value" id="sys-cpu-load">-</span>
+          <span class="stat-label">CPU-Last</span>
+        </div>
+        <div class="stat-tile">
+          <span class="stat-value" id="sys-cpu-temp">-</span>
+          <span class="stat-label">Temperatur</span>
+        </div>
+        <div class="stat-tile">
+          <span class="stat-value" id="sys-ram">-</span>
+          <span class="stat-label">RAM</span>
+          <span class="stat-detail" id="sys-ram-detail"></span>
+        </div>
+        <div class="stat-tile">
+          <span class="stat-value" id="sys-disk">-</span>
+          <span class="stat-label">SD-Karte</span>
+          <span class="stat-detail" id="sys-disk-detail"></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Verbindung</h2>
+
+      <label for="srt_url">Stream-URL (SRT, inkl. Passphrase/Streamid)</label>
+      <input type="text" id="srt_url" name="srt_url" value="{{ cfg.srt_url }}"
+             placeholder="srt://host:port?streamid=...&passphrase=..." autocomplete="off">
+
+      <label for="operator_url">LiveVoice Operator-Link</label>
+      <input type="url" id="operator_url" name="operator_url" value="{{ cfg.operator_url }}"
+             placeholder="https://livevoice.io/de/events/operator/..." autocomplete="off">
+    </section>
+
+    <section class="card">
+      <h2>Audio</h2>
+
+      <label for="audio_device">Audio-Aufnahmegerät — <a href="javascript:void(0)" id="refresh-devices" class="inline-link">Neu suchen</a></label>
+      <select id="audio_device" name="audio_device" data-current="{{ cfg.audio_device }}">
+        {% if not audio_devices %}
+          <option value="{{ cfg.audio_device }}" selected>
+            {{ cfg.audio_device or "Kein Gerät erkannt" }}
+          </option>
+        {% endif %}
+        {% for dev in audio_devices %}
+          <option value="{{ dev.hw_id }}" {{ "selected" if dev.hw_id == cfg.audio_device else "" }}>
+            {{ dev.label }}
+          </option>
+        {% endfor %}
+      </select>
+      <p class="hint" id="refresh-devices-hint">USB-Audio-Interface anschliessen und "Neu suchen" tippen, falls es fehlt.</p>
+
+      <label for="channels">Kanäle</label>
+      <select id="channels" name="channels">
+        <option value="1" {{ "selected" if cfg.channels == 1 else "" }}>Mono</option>
+        <option value="2" {{ "selected" if cfg.channels == 2 else "" }}>Stereo</option>
+      </select>
+
+      <label for="sample_rate">Sample-Rate</label>
+      <select id="sample_rate" name="sample_rate">
+        {% for sr in valid_sample_rates %}
+          <option value="{{ sr }}" {{ "selected" if cfg.sample_rate == sr else "" }}>{{ sr }} Hz</option>
+        {% endfor %}
+      </select>
+
+      <label for="bitrate_kbps">Audio-Bitrate</label>
+      <select id="bitrate_kbps" name="bitrate_kbps">
+        {% for br in valid_bitrates %}
+          <option value="{{ br }}" {{ "selected" if cfg.bitrate_kbps == br else "" }}>{{ br }} kbps (AAC)</option>
+        {% endfor %}
+      </select>
+    </section>
+
+    <section class="card">
+      <h2>Aufnahme</h2>
+
+      <label for="recording_target">Aufnahme-Ziel (USB-Stick) — <a href="javascript:void(0)" id="refresh-drives" class="inline-link">Neu suchen</a></label>
+      <select id="recording_target" name="recording_target" data-current="{{ cfg.recording_target }}">
+        {% if not usb_drives %}
+          <option value="{{ cfg.recording_target }}" selected>
+            {{ cfg.recording_target or "Kein Stick erkannt" }}
+          </option>
+        {% endif %}
+        {% for drive in usb_drives %}
+          <option value="{{ drive.mountpoint or '' }}" data-device="{{ drive.device }}"
+                  {{ "selected" if drive.mountpoint and drive.mountpoint == cfg.recording_target else "" }}>
+            {{ drive.display_label }}{{ " (nicht eingehängt)" if not drive.mounted else "" }}
+          </option>
+        {% endfor %}
+      </select>
+      <p class="hint" id="refresh-drives-hint">USB-Stick anschliessen und "Neu suchen" tippen, falls er fehlt.
+        Nicht eingehängte Sticks zuerst mit "Einhängen" aktivieren.</p>
+
+      <div class="button-row">
+        <button type="button" id="mount-drive" class="btn btn-secondary">Einhängen</button>
+        <button type="button" id="unmount-drive" class="btn btn-secondary">Sicher auswerfen</button>
+        <button type="button" id="format-drive" class="btn btn-danger">Formatieren</button>
+      </div>
+      <p class="hint" id="drive-action-status" hidden></p>
+      <p class="hint">Vor dem physischen Abziehen des Sticks immer "Sicher auswerfen" nutzen, sonst
+        droht Datenverlust an der zuletzt geschriebenen Aufnahme. "Formatieren" löscht alle Daten
+        auf dem Stick unwiderruflich und legt ihn neu als exFAT an.</p>
+
+      <label for="recording_filename_prefix">Dateiname-Präfix</label>
+      <input type="text" id="recording_filename_prefix" name="recording_filename_prefix"
+             value="{{ cfg.recording_filename_prefix }}" maxlength="40" autocomplete="off">
+      <p class="hint">Aufnahmen heissen: "<span id="recording-filename-preview">{{ cfg.recording_filename_prefix }}</span>-{{ example_timestamp }}.wav"</p>
+      <p class="hint">Format: WAV, unkomprimiert, {{ "Stereo" if cfg.channels == 2 else "Mono" }},
+        {{ cfg.sample_rate }} Hz - dieselben Kanäle/Sample-Rate wie oben unter "Audio" eingestellt,
+        auch für den Stream zu LiveVoice (kein separates Downmixing auf Mono).</p>
+    </section>
+
+    <section class="card">
+      <h2>Netzwerk</h2>
+
+      <details class="advanced">
+        <summary>Erweitert</summary>
+        <label for="web_port">WebUI-Port</label>
+        <input type="number" id="web_port" name="web_port" min="1" max="65535" value="{{ cfg.web_port }}"
+               placeholder="80">
+        <p class="hint">Standard 80, sonst ein Port ab 1024. Änderung startet den Dienst kurz neu.</p>
+      </details>
+
+      {% if not network_available %}
+        <p class="error">NetworkManager (nmcli) wurde auf diesem Gerät nicht gefunden - WLAN-Verwaltung ist hier nicht möglich.</p>
+      {% else %}
+        <dl class="status-grid">
+          <dt>Verbunden über</dt>
+          <dd id="network-active-connections">
+            {% if active_connections %}
+              {{ active_connections | map(attribute="label") | join(", ") }}
+            {% else %}
+              nicht verbunden
+            {% endif %}
+          </dd>
+          <dt>IP-Adresse(n)</dt><dd id="network-ip-addresses">{{ ip_addresses | join(", ") if ip_addresses else "-" }}</dd>
+        </dl>
+        <p class="hint">Wechselt dieses Gerät gerade selbst über WLAN das Netzwerk, kann diese Seite kurz nicht
+          erreichbar sein. Per LAN-Kabel verbunden ist das unkritisch.</p>
+
+        {% for conn in active_connections %}
+          <div class="card card-nested ip-config" data-connection="{{ conn.name }}" data-device="{{ conn.device }}">
+            <h3>{{ conn.label }}</h3>
+            {% if conn.ipv4 %}
+              <dl class="status-grid">
+                <dt>IP-Adresse</dt>
+                <dd>{{ conn.ipv4.address ~ "/" ~ conn.ipv4.prefix if conn.ipv4.address else "-" }}</dd>
+                <dt>Gateway</dt><dd>{{ conn.ipv4.gateway or "-" }}</dd>
+                <dt>DNS</dt><dd>{{ conn.ipv4.dns | join(", ") if conn.ipv4.dns else "-" }}</dd>
+                {% if conn.ipv4.method != "manual" %}
+                  <dt>DHCP-Server</dt><dd>{{ conn.ipv4.dhcp_server or "-" }}</dd>
+                {% endif %}
+              </dl>
+
+              <label class="checkbox-label">
+                <input type="radio" name="ipv4-mode-{{ conn.device }}" value="auto" class="ipv4-mode-radio"
+                       {{ "checked" if conn.ipv4.method != "manual" else "" }}>
+                DHCP (automatisch)
+              </label>
+              <label class="checkbox-label">
+                <input type="radio" name="ipv4-mode-{{ conn.device }}" value="manual" class="ipv4-mode-radio"
+                       {{ "checked" if conn.ipv4.method == "manual" else "" }}>
+                Feste IP
+              </label>
+
+              <div class="ipv4-static-fields" {{ "hidden" if conn.ipv4.method != "manual" else "" }}>
+                <label>IP-Adresse</label>
+                <input type="text" class="ipv4-address" value="{{ conn.ipv4.address or '' }}" placeholder="192.168.1.50">
+                <label>Prefix (Subnetzmaske als Bits, z.B. 24 = 255.255.255.0)</label>
+                <input type="number" class="ipv4-prefix" min="0" max="32" value="{{ conn.ipv4.prefix or 24 }}">
+                <label>Gateway</label>
+                <input type="text" class="ipv4-gateway" value="{{ conn.ipv4.gateway or '' }}" placeholder="192.168.1.1">
+                <label>DNS-Server (kommagetrennt)</label>
+                <input type="text" class="ipv4-dns" value="{{ conn.ipv4.dns | join(', ') }}" placeholder="1.1.1.1, 8.8.8.8">
+              </div>
+
+              <p class="hint">Achtung: Bei falschen Werten kann das Gerät im Netzwerk nicht mehr erreichbar sein
+                (dann Zugriff nur noch direkt am Gerät möglich). Diese Seite läuft nach dem Anwenden ggf. unter
+                einer anderen Adresse.</p>
+              <button type="button" class="btn btn-secondary ipv4-apply">Übernehmen</button>
+              <p class="hint ipv4-status" hidden></p>
+            {% endif %}
+          </div>
+        {% endfor %}
+
+        <h3>Bekannte WLANs</h3>
+        <ul id="saved-networks" class="network-list">
+          {% for conn in saved_connections %}
+            <li data-name="{{ conn.name }}">
+              <span class="network-name">{{ conn.display_name }}{% if conn.active %} <span class="badge">aktiv</span>{% endif %}</span>
+              <button type="button" class="btn btn-secondary btn-forget" data-name="{{ conn.name }}">Entfernen</button>
+            </li>
+          {% else %}
+            <li class="hint">Keine gespeicherten WLANs.</li>
+          {% endfor %}
+        </ul>
+
+        <h3>WLANs in Reichweite</h3>
+        <p class="hint">Firmen-/Enterprise-WLANs (802.1X, brauchen Benutzername + Zertifikat) werden hier
+          nicht angezeigt - dafür bitte eine Gast-/Privat-WLAN-Option verwenden oder das Gerät per LAN-Kabel
+          anschliessen.</p>
+        <div class="operator-header">
+          <span></span>
+          <button type="button" id="scan-networks" class="btn btn-secondary">Suchen</button>
+        </div>
+        <ul id="scanned-networks" class="network-list">
+          <li class="hint">Noch nicht gesucht.</li>
+        </ul>
+
+        <div class="card card-nested" id="wifi-connect-card" hidden>
+          <h3>Mit <span id="connect-ssid-label"></span> verbinden</h3>
+          <input type="hidden" id="connect-ssid">
+          <label for="connect-password">Passwort</label>
+          <div class="row-with-button">
+            <input type="password" id="connect-password" autocomplete="off">
+            <button type="button" class="btn-icon btn-secondary password-toggle" data-target="connect-password"
+                    aria-label="Passwort anzeigen">👁</button>
+          </div>
+          <div class="stream-row">
+            <button type="button" id="connect-submit" class="btn btn-start">Verbinden</button>
+            <button type="button" id="connect-cancel" class="btn btn-secondary">Abbrechen</button>
+          </div>
+          <p id="wifi-connect-status" class="hint" hidden></p>
+        </div>
+      {% endif %}
+    </section>
+
+    <details class="advanced advanced-section">
+      <summary>Weitere Einstellungen</summary>
+      <section class="card card-nested">
+        <h3>Anzeige</h3>
+        <label class="checkbox-label">
+          <input type="checkbox" name="hide_operator" value="1" {{ "checked" if cfg.hide_operator else "" }}>
+          LiveVoice-Operator-Bereich auf der Stream-Seite ausblenden
+        </label>
+
+        <h3>Zugriff</h3>
+        <label for="web_password">WebUI-Passwort (optional, leer lassen = unverändert)</label>
+        <div class="row-with-button">
+          <input type="password" id="web_password" name="web_password" autocomplete="new-password"
+                 placeholder="{{ 'gesetzt - zum Ändern neu eingeben' if cfg.web_password_set else 'kein Passwort gesetzt' }}">
+          <button type="button" class="btn-icon btn-secondary password-toggle" data-target="web_password"
+                  aria-label="Passwort anzeigen">👁</button>
+        </div>
+        <label class="checkbox-label">
+          <input type="checkbox" name="clear_password" value="1"> Passwort entfernen
+        </label>
+
+        <h3>Diagnose</h3>
+        <label for="log_level">Log-Level</label>
+        <select id="log_level" name="log_level">
+          {% for lvl in valid_log_levels %}
+            <option value="{{ lvl }}" {{ "selected" if cfg.log_level == lvl else "" }}>{{ lvl }}</option>
+          {% endfor %}
+        </select>
+        <p class="hint">Bei Problemen kurzfristig auf DEBUG stellen, danach wieder zurück auf INFO.</p>
+        <p class="hint">Log der letzten Dienst-Läufe (Start/Stop, Fehler, ffmpeg-Meldungen) als Textdatei
+          herunterladen - hilfreich zur Fehlersuche nach einem Event.</p>
+        <a href="{{ url_for('download_logs') }}" class="btn btn-secondary">Log herunterladen</a>
+      </section>
+    </details>
+  </form>
+{% endblock %}

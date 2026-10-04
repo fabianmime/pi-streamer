@@ -1,0 +1,18 @@
+polkit.addRule(function(action, subject) {
+    if (action.id.indexOf("org.freedesktop.udisks2.filesystem-mount") === 0 &&
+        subject.user == "rec") {
+        return polkit.Result.YES;
+    }
+    if (action.id == "org.freedesktop.udisks2.filesystem-unmount-others" &&
+        subject.user == "rec") {
+        return polkit.Result.YES;
+    }
+    // Fuers "Stick formatieren"-Feature (Block.Format per busctl, siehe
+    // app/storage.py). Praefix-Vergleich statt exaktem "==", da UDisks2 je
+    // nach Geraet auch "modify-device-system" oder "modify-device-other-seat"
+    // anfragen kann, nicht nur das nackte "modify-device".
+    if (action.id.indexOf("org.freedesktop.udisks2.modify-device") === 0 &&
+        subject.user == "rec") {
+        return polkit.Result.YES;
+    }
+});

@@ -1,0 +1,13 @@
+{
+  "srt_url": "srt://<host>:<port>?streamid=<stream-id>&passphrase=<passphrase>",
+  "operator_url": "https://livevoice.io/de/events/operator/<token>",
+  "audio_device": "plughw:1,0",
+  "channels": 2,
+  "sample_rate": 48000,
+  "bitrate_kbps": 160,
+  "web_password": "",
+  "web_port": 80,
+  "hide_operator": false,
+  "log_level": "INFO",
+  "recording_target": "/media/livevoice/<STICK-LABEL>"
+}

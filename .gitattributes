@@ -1,0 +1,5 @@
+# Läuft auf dem Raspberry Pi (Linux): immer LF, auch beim Checkout unter Windows
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.zip binary

@@ -1,0 +1,33 @@
+[Unit]
+Description=LiveVoice Pi Streamer (SRT-Audiostream + WebUI)
+After=network-online.target sound.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=rec
+Group=rec
+WorkingDirectory=/opt/livevoice-streamer
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/livevoice-streamer/venv/bin/python3 wsgi.py
+Restart=always
+RestartSec=3
+
+# Der Port kommt aus instance/config.json (Standard 80). Ports unter 1024
+# brauchen ohne root-Rechte diese eine Fähigkeit statt setuid/setcap-Tricks:
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+NoNewPrivileges=true
+
+# USB-Audiogeräte und (falls genutzt) ALSA benötigen Zugriff auf die
+# entsprechenden Gruppen - der Service-User muss z.B. Mitglied von "audio" sein:
+#   sudo usermod -aG audio rec
+#
+# Restart=always ist bewusst gewählt (nicht nur on-failure): nach einer
+# Portänderung über die Settings-Seite beendet sich der Prozess selbst
+# (os._exit) - systemd startet ihn dann mit dem neuen Port aus der
+# aktualisierten Config neu. Ein reguläres "systemctl stop" wird davon
+# nicht beeinflusst.
+
+[Install]
+WantedBy=multi-user.target

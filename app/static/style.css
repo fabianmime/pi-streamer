@@ -1,0 +1,599 @@
+:root {
+  --bg: #f7f5f3;
+  --card-bg: #ffffff;
+  --input-bg: #f0ece8;
+  --text: #1c1b1a;
+  --muted: #6b6560;
+  --green: #178a44;
+  --red: #b8302f;
+  --accent: #f56230;
+  --border: #e4ded9;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1114;
+    --card-bg: #151a1e;
+    --input-bg: #222a31;
+    --text: #e8ecea;
+    --muted: #8b9793;
+    --green: #3ee39b;
+    --red: #d43f3f;
+    --accent: #f56230;
+    --border: #222a31;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #0e1114;
+  --card-bg: #151a1e;
+  --input-bg: #222a31;
+  --text: #e8ecea;
+  --muted: #8b9793;
+  --green: #3ee39b;
+  --red: #d43f3f;
+  --accent: #f56230;
+  --border: #222a31;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+
+.topnav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.7rem 1.25rem;
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.brand-link {
+  display: flex;
+  align-items: center;
+  opacity: 1;
+  transition: opacity 0.15s ease;
+}
+.brand-link:hover { opacity: 0.85; }
+
+.brand-logo {
+  height: 52px;
+  width: auto;
+  display: block;
+}
+
+@media (max-width: 480px) {
+  .brand-logo { height: 38px; }
+}
+
+.brand-logo-dark { display: none; }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .brand-logo-light { display: none; }
+  :root:not([data-theme="light"]) .brand-logo-dark { display: block; }
+}
+
+:root[data-theme="dark"] .brand-logo-light { display: none; }
+:root[data-theme="dark"] .brand-logo-dark { display: block; }
+
+.nav-tabs { display: flex; align-items: center; gap: 0.4rem; }
+
+.nav-tabs a {
+  color: var(--muted);
+  text-decoration: none;
+  padding: 0.55rem 1rem;
+  border-radius: 0.6rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.nav-tabs a.active {
+  color: var(--text);
+  background: var(--border);
+}
+
+.nav-icon-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+}
+
+main {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1.25rem 1rem 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.06);
+}
+
+.card h2 {
+  margin-top: 0;
+  font-size: 1.25rem;
+}
+
+.card h3 {
+  font-size: 1.02rem;
+  margin: 1.5rem 0 0.25rem;
+}
+
+.card-nested {
+  margin-top: 1rem;
+  box-shadow: none;
+  background: var(--input-bg);
+}
+
+.stream-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.btn {
+  -webkit-appearance: none;
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  box-sizing: border-box;
+  border: none;
+  border-radius: 0.75rem;
+  padding: 1.1rem 1.6rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+  min-height: 56px;
+  min-width: 200px;
+  line-height: 1.1;
+  cursor: pointer;
+  color: #fff;
+  touch-action: manipulation;
+  transition: filter 0.15s ease, transform 0.05s ease;
+}
+
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn:not(:disabled):hover { filter: brightness(1.08); }
+.btn:not(:disabled):active { transform: scale(0.98); }
+
+.btn-start { background: var(--green); }
+.btn-stop { background: var(--red); }
+.btn-secondary {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  min-width: auto;
+  font-size: 1rem;
+  padding: 0.7rem 1rem;
+  min-height: 44px;
+}
+.btn-secondary:not(:disabled):hover { filter: none; background: var(--border); }
+
+.btn-danger {
+  background: transparent;
+  border: 1px solid var(--red);
+  color: var(--red);
+  min-width: auto;
+  font-size: 1rem;
+  padding: 0.7rem 1rem;
+  min-height: 44px;
+}
+.btn-danger:not(:disabled):hover { filter: none; background: var(--red); color: #fff; }
+
+.btn-icon {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  font-size: 1.2rem;
+  line-height: 1;
+  border-radius: 0.6rem;
+}
+
+.status-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 1.1rem;
+}
+
+.status-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--muted);
+  display: inline-block;
+}
+
+.status-dot.running { background: var(--green); }
+.status-dot.stopped { background: var(--muted); }
+.status-dot.error { background: var(--red); }
+
+.status-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.4rem 1rem;
+  margin: 1rem 0 0;
+  color: var(--muted);
+}
+
+.status-grid dt { font-weight: 600; color: var(--text); }
+.status-grid dd { margin: 0; }
+
+.error { color: var(--red); font-weight: 600; }
+.success { color: var(--green); font-weight: 600; }
+
+.error-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+/* "display: flex" oben hat sonst dieselbe Spezifitaet wie die
+   Browser-Standardregel "[hidden] { display: none }" und gewinnt als
+   Autor-Regel dagegen - die Zeile (und damit das "x") bliebe trotz
+   hidden-Attribut sichtbar. Explizit wieder herstellen. */
+.error-row[hidden] {
+  display: none;
+}
+.error-row .error { margin: 0; flex: 1 1 auto; }
+.error-dismiss {
+  flex: none;
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  border: none;
+  color: var(--red);
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  min-width: 44px;
+  min-height: 44px;
+  touch-action: manipulation;
+}
+.error-dismiss:hover { opacity: 0.7; }
+.hint { color: var(--muted); font-size: 0.95rem; }
+
+.level-meter-wrap {
+  margin-top: 1rem;
+}
+/* Eigene Karte ganz oben auf der Stream-Seite (gehört zu Stream UND
+   Aufnahme, siehe app/levelmeter.py) - dort kein zusätzlicher Abstand
+   nötig, das Karten-Padding reicht. */
+.level-meter-card .level-meter-wrap {
+  margin-top: 0;
+}
+
+/* Bei Stereo zwei Zeilen (L/R) untereinander, siehe index.html. */
+.level-meter-row + .level-meter-row {
+  margin-top: 0.6rem;
+}
+
+.level-meter-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 0.3rem;
+}
+
+.level-meter {
+  height: 14px;
+  border-radius: 999px;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.level-meter-fill {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: var(--green);
+  transition: width 0.12s linear, background-color 0.12s linear;
+}
+
+.level-meter-fill.level-yellow { background: #e6b800; }
+.level-meter-fill.level-red { background: var(--red); }
+
+.stat-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.stat-tile {
+  flex: 1 1 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.9rem 0.5rem;
+  background: var(--input-bg);
+  border-radius: 0.75rem;
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.stat-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.stat-detail {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.storage-mini {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin-top: 0.9rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.9rem;
+}
+
+.storage-mini-label { color: var(--muted); font-weight: 600; }
+
+#storage-mini-value.storage-warn-yellow { color: #e6b800; font-weight: 700; }
+#storage-mini-value.storage-warn-red { color: var(--red); font-weight: 700; }
+
+.operator-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+details.advanced {
+  margin-top: 1rem;
+  border-top: 1px solid var(--border);
+  padding-top: 1rem;
+}
+
+details.advanced summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+details.advanced label:first-of-type { margin-top: 0.75rem; }
+
+details.advanced-section {
+  border-top: none;
+  padding-top: 0;
+}
+
+details.advanced-section summary {
+  font-size: 1.05rem;
+  padding: 0.5rem 0;
+}
+
+details.advanced-section .card-nested {
+  margin-top: 0.5rem;
+}
+
+form { display: flex; flex-direction: column; gap: 0.5rem; }
+
+label {
+  display: block;
+  font-weight: 600;
+  margin-top: 0.9rem;
+  margin-bottom: 0.3rem;
+}
+
+.inline-link {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.inline-link:hover { opacity: 0.8; }
+
+input[type="text"], input[type="url"], input[type="password"], input[type="number"], select {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  font-size: 1.05rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: 0.6rem;
+  border: 1px solid var(--border);
+  background: var(--input-bg);
+  color: var(--text);
+  min-height: 48px;
+  line-height: 1.2;
+  transition: border-color 0.15s ease;
+}
+
+select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%23808080' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 8l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 16px;
+  padding-right: 2.25rem;
+}
+
+input[type="text"]:focus, input[type="url"]:focus, input[type="password"]:focus,
+input[type="number"]:focus, select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.row-with-button {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+/* Fuer reine Button-Gruppen (kein schrumpfbares Input/Select daneben) -
+   darf auf schmalen Bildschirmen umbrechen statt zu overflowen. */
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.button-row .btn { flex: 1 1 auto; }
+.row-with-button select, .row-with-button input {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+}
+.row-with-button .btn, .row-with-button .btn-icon {
+  flex: none;
+  min-width: auto;
+  min-height: 48px;
+  height: 48px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 400;
+}
+
+form .btn { align-self: flex-start; margin-top: 1rem; }
+
+.network-list {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.network-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  background: var(--input-bg);
+}
+
+.network-list li.hint {
+  border: none;
+  background: transparent;
+  padding: 0.25rem 0;
+}
+
+.network-name {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-weight: 600;
+}
+
+.network-list .btn {
+  align-self: center;
+  min-height: 36px;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.92rem;
+}
+
+.signal-bar {
+  display: inline-block;
+  width: 60px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.signal-bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.settings-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.settings-toolbar .btn {
+  min-width: auto;
+  min-height: 44px;
+  padding: 0.7rem 1.4rem;
+  font-size: 1rem;
+}
+
+.login-main {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 380px;
+  text-align: center;
+}
+
+.login-logo {
+  height: 56px;
+  width: auto;
+  display: block;
+  margin: 0 auto 1.5rem;
+}
+
+.login-card .row-with-button { text-align: left; }
+.login-card label { text-align: left; }
+
+.login-submit { width: 100%; justify-content: center; margin-top: 1rem; }
+
+.badge {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--green);
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+}
