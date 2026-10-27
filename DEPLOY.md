@@ -7,8 +7,8 @@
    das Gerät läuft headless, Bedienung nur über das WebUI).
 3. Im Imager unter dem Zahnrad (erweiterte Optionen) vorab konfigurieren:
    - Hostname: `livevoice-streamer`
-   - Benutzername: `mpadmin` (gleiche Konvention wie bei den anderen privaten
-     Pis von Fabian) **mit Passwort** - wird gleich noch für den SSH-Key-
+   - Benutzername: frei wählbar, hier im Beispiel `mpadmin`,
+     **mit Passwort** - wird gleich noch für den SSH-Key-
      Transfer und den einmaligen `sudo`-Bootstrap gebraucht
    - SSH aktivieren -> **"Use password authentication"** (einfacher als den
      Key manuell ins Imager-Feld zu tippen - der Key wird gleich nach dem
@@ -124,7 +124,7 @@ hinterlegt werden, sie greift ab dem Moment, in dem es den Benutzer gibt.)
 ## 4b. Herunterfahren/Neustarten erlauben (Polkit)
 
 Die "Neustart"/"Herunterfahren"-Icons im Header (nur sichtbar auf der
-Einstellungen-Seite, siehe README) rufen `systemctl poweroff`/
+Einstellungen-Seite, siehe docs/TECHNIK.md) rufen `systemctl poweroff`/
 `systemctl reboot` auf - das spricht intern `logind` per D-Bus an. Ohne
 Freigabe lehnt `logind` das für den Dienstbenutzer `rec` ab, der keine
 eigene Login-Session hat - analog zu den Polkit-Regeln für
@@ -174,13 +174,13 @@ sudo systemctl restart polkit
 
 ## 5. Recording: geteilter Audio-Zugriff (dsnoop) + USB-Stick-Verwaltung
 
-Für die parallele WAV-Aufnahme neben dem Stream (siehe README, Abschnitt
+Für die parallele Aufnahme neben dem Stream (siehe docs/TECHNIK.md, Abschnitt
 "Recording") braucht es zwei separate Einmal-Einrichtungen.
 
 ### a) ALSA-`dsnoop`-Alias für gleichzeitigen Zugriff
 
 Ein USB-Audio-Interface erlaubt normalerweise nur einem Prozess gleichzeitigen
-Zugriff (siehe README, "Eingangspegel-Meter: läuft dauerhaft mit"). Damit
+Zugriff (siehe docs/TECHNIK.md, "Eingangspegel-Meter: läuft dauerhaft mit"). Damit
 Stream- und Recording-ffmpeg dasselbe Interface gleichzeitig lesen können,
 teilt ALSAs `dsnoop`-Plugin einen einzelnen Hardware-Zugriff auf mehrere
 Leser auf.
@@ -221,7 +221,7 @@ sudo apt install -y udisks2 exfatprogs
 ```
 
 (`exfatprogs` liefert `mkfs.exfat` - gebraucht fürs "Stick formatieren"-
-Feature, siehe README, "Recording: geteilter Audio-Zugriff".)
+Feature, siehe docs/TECHNIK.md, "Recording: geteilter Audio-Zugriff".)
 
 Wie bei der WLAN-Verwaltung (siehe Schritt 4) braucht der Dienstbenutzer
 `rec` (wird erst im nächsten Schritt angelegt - die Regel greift ab dem
@@ -299,9 +299,15 @@ sudo chown rec:rec /opt/livevoice-streamer
 "Log herunterladen"-Knopf unter Einstellungen → Weitere Einstellungen zu
 lesen - ohne diese Gruppe liefert `journalctl` einen Permission-Fehler.)
 
-Projekt auf den Pi bringen (z. B. per `scp`/`rsync` von diesem Rechner aus,
-oder per `git clone`, falls das Projekt in ein eigenes Repo ausgelagert
-wird):
+Projekt auf den Pi bringen - am einfachsten direkt aus GitHub (dann
+funktioniert auch die Update-Funktion im WebUI sofort):
+
+```sh
+sudo -u rec git clone https://github.com/fabianmime/pi-streamer.git /opt/livevoice-streamer
+```
+
+Alternativ für die Entwicklung per `rsync` vom eigenen Rechner (das erste
+Update über das WebUI macht daraus später einen Git-Checkout):
 
 ```sh
 # Vom Entwicklungsrechner aus, Beispiel mit rsync:
@@ -367,7 +373,7 @@ WebUI im Browser öffnen: `http://livevoice-streamer.local/settings`
   eine eigene Login-Seite (kein Browser-Popup).
 
 Weitere Einstellungsmöglichkeiten (Log-Level, Log-Download, Operator
-ausblenden, DHCP/feste IP) sind im README unter "WebUI im Detail"
+ausblenden, DHCP/feste IP) sind in docs/TECHNIK.md unter "WebUI im Detail"
 beschrieben.
 
 Falls der Pi am Eventort per WLAN statt LAN-Kabel angebunden wird: im
