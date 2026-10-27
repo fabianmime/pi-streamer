@@ -1,0 +1,12 @@
+polkit.addRule(function(action, subject) {
+    // Fuers "Geraetename"-Feld in den Einstellungen (app/system.py::
+    // set_hostname, ruft "hostnamectl set-hostname" auf - das spricht
+    // systemd-hostnamed per D-Bus an). Nur den statischen/transienten
+    // Hostnamen, nicht Zeitzone/Locale o.ae. - analog zu den Regeln fuer
+    // NetworkManager/udisks2/logind auf den Dienstbenutzer "rec" begrenzt.
+    if ((action.id == "org.freedesktop.hostname1.set-static-hostname" ||
+         action.id == "org.freedesktop.hostname1.set-hostname") &&
+        subject.user == "rec") {
+        return polkit.Result.YES;
+    }
+});

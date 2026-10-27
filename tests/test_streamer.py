@@ -54,7 +54,7 @@ def _exit_immediately_cmd_builder(_cfg, code: int = 1):
 
 def test_start_then_status_reports_running():
     manager = StreamManager(cmd_builder=_sleep_cmd_builder)
-    cfg = StreamerConfig(srt_url="srt://x", audio_device="hw:1,0")
+    cfg = StreamerConfig(srt_url="srt://x", audio_device="hw:1,0", stream_auto_reconnect=False)
 
     status = manager.start(cfg)
     try:
@@ -67,7 +67,7 @@ def test_start_then_status_reports_running():
 
 def test_start_twice_raises():
     manager = StreamManager(cmd_builder=_sleep_cmd_builder)
-    cfg = StreamerConfig(srt_url="srt://x", audio_device="hw:1,0")
+    cfg = StreamerConfig(srt_url="srt://x", audio_device="hw:1,0", stream_auto_reconnect=False)
 
     manager.start(cfg)
     try:
@@ -79,7 +79,7 @@ def test_start_twice_raises():
 
 def test_stop_terminates_process():
     manager = StreamManager(cmd_builder=_sleep_cmd_builder)
-    cfg = StreamerConfig(srt_url="srt://x", audio_device="hw:1,0")
+    cfg = StreamerConfig(srt_url="srt://x", audio_device="hw:1,0", stream_auto_reconnect=False)
 
     manager.start(cfg)
     status = manager.stop()
@@ -93,7 +93,7 @@ def test_deliberate_stop_does_not_report_as_error():
     # (SIGTERM/SIGKILL) - das darf nicht fälschlicherweise als Absturz/Fehler
     # im Status auftauchen (siehe echter Log vom 2026-09-06).
     manager = StreamManager(cmd_builder=_sleep_cmd_builder)
-    cfg = StreamerConfig(srt_url="srt://x", audio_device="hw:1,0")
+    cfg = StreamerConfig(srt_url="srt://x", audio_device="hw:1,0", stream_auto_reconnect=False)
 
     manager.start(cfg)
     status = manager.stop()
@@ -111,7 +111,7 @@ def test_stop_when_not_running_is_noop():
 
 def test_process_exiting_with_error_is_reflected_in_status():
     manager = StreamManager(cmd_builder=lambda cfg: _exit_immediately_cmd_builder(cfg, code=1))
-    cfg = StreamerConfig(srt_url="srt://x", audio_device="hw:1,0")
+    cfg = StreamerConfig(srt_url="srt://x", audio_device="hw:1,0", stream_auto_reconnect=False)
 
     manager.start(cfg)
     deadline = time.monotonic() + 5
@@ -127,7 +127,7 @@ def test_process_exiting_with_error_is_reflected_in_status():
 
 def test_clear_error_hides_last_error_without_touching_process():
     manager = StreamManager(cmd_builder=lambda cfg: _exit_immediately_cmd_builder(cfg, code=1))
-    cfg = StreamerConfig(srt_url="srt://x", audio_device="hw:1,0")
+    cfg = StreamerConfig(srt_url="srt://x", audio_device="hw:1,0", stream_auto_reconnect=False)
 
     manager.start(cfg)
     deadline = time.monotonic() + 5
@@ -197,7 +197,7 @@ def _srt_connect_failure_cmd_builder(_cfg):
 
 def test_stream_shows_friendly_hint_on_srt_connect_failure():
     manager = StreamManager(cmd_builder=_srt_connect_failure_cmd_builder)
-    cfg = StreamerConfig(srt_url="srt://x", audio_device="hw:1,0")
+    cfg = StreamerConfig(srt_url="srt://x", audio_device="hw:1,0", stream_auto_reconnect=False)
 
     manager.start(cfg)
     deadline = time.monotonic() + 5

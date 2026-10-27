@@ -7,6 +7,7 @@ CLI, die den Port sonst schon vor dem Config-Laden bräuchte.
 """
 
 import sys
+import threading
 
 import waitress
 
@@ -15,6 +16,15 @@ from app import create_app
 app = create_app()
 
 if __name__ == "__main__":
+    # Nur im echten Dienst, nicht in Tests: Stream nach Stromausfall
+    # fortsetzen und die automatische Update-Prüfung starten.
+    app.state.resume_stream_if_wanted()
+    threading.Thread(
+        target=app.state.updater.auto_loop,
+        args=(lambda: app.state.config, app.state.is_busy),
+        daemon=True,
+    ).start()
+
     port = app.state.config.web_port
     try:
         waitress.serve(app, host="0.0.0.0", port=port)

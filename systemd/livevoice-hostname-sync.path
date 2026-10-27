@@ -1,0 +1,11 @@
+[Unit]
+Description=LiveVoice Pi Streamer: Geraetename-Aenderung beobachten
+
+# Feuert, sobald das WebUI den Geraetenamen ueber hostnamectl aendert
+# (hostnamed schreibt dann /etc/hostname neu) - siehe
+# livevoice-hostname-sync.service.
+[Path]
+PathChanged=/etc/hostname
+
+[Install]
+WantedBy=multi-user.target

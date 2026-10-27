@@ -1,0 +1,7 @@
+[Unit]
+Description=LiveVoice Pi Streamer: /etc/hosts und mDNS an neuen Geraetenamen anpassen
+
+# Ausgeloest von livevoice-hostname-sync.path, Details im Skript.
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/livevoice-hostname-sync

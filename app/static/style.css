@@ -229,6 +229,12 @@ main {
 .status-dot.running { background: var(--green); }
 .status-dot.stopped { background: var(--muted); }
 .status-dot.error { background: var(--red); }
+/* Automatisches Neuverbinden läuft (siehe app/streamer.py) - gelb blinkend. */
+.status-dot.reconnecting { background: #e6b800; animation: reconnect-blink 1s ease-in-out infinite; }
+@keyframes reconnect-blink { 50% { opacity: 0.3; } }
+
+.update-commits { margin: 0.25rem 0 0.75rem; padding-left: 1.25rem; }
+.update-commits:empty { display: none; }
 
 .status-grid {
   display: grid;

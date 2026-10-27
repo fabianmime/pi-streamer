@@ -61,8 +61,11 @@ eintippen musst.
 
 ```sh
 sudo apt update
-sudo apt install -y ffmpeg python3-venv python3-pip alsa-utils
+sudo apt install -y ffmpeg python3-venv python3-pip alsa-utils git avahi-daemon
 ```
+
+(`git` braucht die Update-Funktion im WebUI, `avahi-daemon` macht das Gerät
+als `<gerätename>.local` auffindbar - auf Raspberry Pi OS meist schon dabei.)
 
 USB-Audio-Interface anschliessen und prüfen, dass es erkannt wird:
 
@@ -150,6 +153,24 @@ beide Varianten pauschal mit erlauben.
 `pkcheck --action-id org.freedesktop.login1.power-off --process <PID des
 Diensts>` (als root, da `pkcheck` fremde UIDs nur root prüfen lässt)
 verifiziert, ohne den Pi dafür tatsächlich herunterzufahren/neu zu starten.
+
+## 4c. Gerätename aus dem WebUI ändern (Polkit + Sync-Unit)
+
+Das Feld "Gerätename" (Einstellungen → Netzwerk) ruft `hostnamectl
+set-hostname` auf. Dafür braucht der Dienstbenutzer `rec` eine
+Polkit-Freigabe. Zusätzlich zieht eine kleine Pfad-Unit als root
+`/etc/hosts` (127.0.1.1-Zeile, sonst meldet `sudo` "unable to resolve host")
+nach und startet avahi neu, damit `<name>.local` sofort stimmt:
+
+```sh
+cd /opt/livevoice-streamer
+sudo install -m 644 systemd/50-livevoice-hostname.rules /etc/polkit-1/rules.d/
+sudo install -m 755 systemd/livevoice-hostname-sync.sh /usr/local/sbin/livevoice-hostname-sync
+sudo install -m 644 systemd/livevoice-hostname-sync.service systemd/livevoice-hostname-sync.path /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now livevoice-hostname-sync.path
+sudo systemctl restart polkit
+```
 
 ## 5. Recording: geteilter Audio-Zugriff (dsnoop) + USB-Stick-Verwaltung
 
@@ -375,7 +396,23 @@ LiveVoice ankommt.
 
 ## 11. Update / Redeploy
 
-Bei Code-Änderungen: Schritt 6 (rsync) wiederholen, danach:
+**Normalfall: Update über das WebUI.** Code nach
+`https://github.com/fabianmime/pi-streamer` (Branch `main`) pushen, dann
+Einstellungen → Weitere Einstellungen → Update → "Nach Updates suchen" →
+"Jetzt installieren" (geht nur, solange weder Stream noch Aufnahme laufen).
+Der erste Lauf macht aus einem per rsync installierten Verzeichnis einen
+Git-Checkout. `instance/`, `venv/` und `.asoundrc` bleiben unberührt.
+Optional "Updates automatisch installieren" (Prüfung alle 6 Std.).
+
+Ändert ein Update etwas unter `systemd/` (Unit, Polkit-Regeln), zeigt die
+Update-Karte einen Hinweis - diese Dateien brauchen root und müssen per SSH
+gemäss den Abschnitten oben neu installiert werden.
+
+Für ein privates Repo statt des öffentlichen: Deploy-Key (nur lesend) für
+`rec` unter `/opt/livevoice-streamer/.ssh/id_ed25519` ablegen und als
+Update-Quelle `git@github.com:<user>/<repo>.git` eintragen.
+
+**Manuell (Fallback/Entwicklung):** Schritt 6 (rsync) wiederholen, danach:
 
 ```sh
 sudo -u rec /opt/livevoice-streamer/venv/bin/pip install -r /opt/livevoice-streamer/requirements.txt

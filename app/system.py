@@ -14,7 +14,9 @@ NetworkManager/udisks2 in DEPLOY.md).
 
 from __future__ import annotations
 
+import re
 import shutil
+import socket
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -23,8 +25,8 @@ _LOADAVG_PATH = Path("/proc/loadavg")
 _MEMINFO_PATH = Path("/proc/meminfo")
 _THERMAL_ZONE_PATH = Path("/sys/class/thermal/thermal_zone0/temp")
 
-# WAV-Aufnahme ist fest S16_LE (siehe app/recorder.py::build_ffmpeg_record_cmd) -
-# 2 Byte je Sample und Kanal.
+# Aufnahme ist fest S16_LE (siehe app/recorder.py::build_ffmpeg_record_cmd) -
+# 2 Byte je Sample und Kanal, vor einer allfälligen Kompression (FLAC).
 _BYTES_PER_SAMPLE = 2
 
 
@@ -122,14 +124,61 @@ def cpu_temperature_celsius(path: Path = _THERMAL_ZONE_PATH) -> float | None:
     return millidegrees / 1000.0
 
 
-def estimate_recording_seconds(free_bytes: int, channels: int, sample_rate: int) -> float:
+def estimate_recording_seconds(free_bytes: int, channels: int, sample_rate: int, size_factor: float = 1.0) -> float:
     """Grobe Restlaufzeit-Schätzung fürs Aufnahme-Ziel auf dem Cockpit:
     freier Speicher / Bytes-pro-Sekunde bei der aktuell konfigurierten
-    WAV-Aufnahme (unkomprimiert, siehe app/recorder.py)."""
-    bytes_per_second = channels * sample_rate * _BYTES_PER_SAMPLE
+    Aufnahme. `size_factor` ist das Grössenverhältnis des Formats zu
+    unkomprimiertem PCM (siehe app/recorder.py::RECORDING_FORMATS)."""
+    bytes_per_second = channels * sample_rate * _BYTES_PER_SAMPLE * size_factor
     if bytes_per_second <= 0 or free_bytes <= 0:
         return 0.0
     return free_bytes / bytes_per_second
+
+
+# RFC 1123: Buchstaben, Ziffern, Bindestrich, max. 63 Zeichen, nicht mit
+# Bindestrich beginnend/endend - so ist der Name auch als `<name>.local`
+# (mDNS/Bonjour) und im DNS des Routers gültig.
+_HOSTNAME_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$")
+
+
+def current_hostname() -> str:
+    return socket.gethostname()
+
+
+def validate_hostname(name: str) -> str | None:
+    """Gibt eine Fehlermeldung zurück oder None, wenn der Name gültig ist."""
+    if not _HOSTNAME_RE.match(name):
+        return (
+            "Gerätename darf nur Buchstaben, Ziffern und Bindestriche enthalten "
+            "(max. 63 Zeichen, nicht mit Bindestrich beginnen/enden)."
+        )
+    return None
+
+
+def set_hostname(name: str, timeout: float = 10.0) -> tuple[bool, str | None]:
+    """Setzt den Gerätenamen über `hostnamectl` (systemd-hostnamed per
+    D-Bus) - braucht die Polkit-Freigabe aus
+    `systemd/50-livevoice-hostname.rules`. Die Pfad-Unit
+    `livevoice-hostname-sync.path` zieht danach /etc/hosts nach und startet
+    avahi neu, damit `<name>.local` sofort unter dem neuen Namen auftaucht
+    (siehe DEPLOY.md)."""
+    error = validate_hostname(name)
+    if error:
+        return False, error
+    try:
+        result = subprocess.run(
+            ["hostnamectl", "set-hostname", name],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return False, f"Gerätename konnte nicht gesetzt werden: {exc}"
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "").strip()
+        return False, detail or "Gerätename konnte nicht gesetzt werden."
+    return True, None
 
 
 def _run_power_action(cmd: list[str], timeout: float, label: str) -> tuple[bool, str | None]:

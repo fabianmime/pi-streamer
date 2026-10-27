@@ -2,7 +2,7 @@
 {% block title %}Einstellungen - LiveVoice Streamer{% endblock %}
 {% block content %}
   <div class="settings-toolbar">
-    {% if cfg.web_password_set %}
+    {% if cfg.web_password_set or cfg.admin_password_set %}
       <a href="{{ url_for('logout') }}" class="btn btn-secondary">Jetzt abmelden</a>
     {% endif %}
     <button type="submit" form="settings-form" class="btn btn-start">Speichern</button>
@@ -13,6 +13,13 @@
     <p class="success">
       Port geändert auf {{ new_port }} - der Dienst startet jetzt kurz neu. Danach hier weiter:
       <a href="http://{{ request.host.split(':')[0] }}:{{ new_port }}/settings">http://{{ request.host.split(':')[0] }}:{{ new_port }}/settings</a>
+    </p>
+  {% endif %}
+  {% if hostname_changed %}
+    <p class="success">
+      Gerätename geändert - erreichbar unter
+      <a href="http://{{ hostname }}.local{{ '' if cfg.web_port == 80 else ':' ~ cfg.web_port }}/">http://{{ hostname }}.local{{ '' if cfg.web_port == 80 else ':' ~ cfg.web_port }}/</a>
+      (kann einige Sekunden dauern).
     </p>
   {% endif %}
   {% if error %}<p class="error">{{ error }}</p>{% endif %}
@@ -52,6 +59,14 @@
       <label for="operator_url">LiveVoice Operator-Link</label>
       <input type="url" id="operator_url" name="operator_url" value="{{ cfg.operator_url }}"
              placeholder="https://livevoice.io/de/events/operator/..." autocomplete="off">
+
+      <label class="checkbox-label">
+        <input type="checkbox" name="stream_auto_reconnect" value="1" {{ "checked" if cfg.stream_auto_reconnect else "" }}>
+        Stream bei Abbruch automatisch neu verbinden
+      </label>
+      <p class="hint">Bricht die Verbindung ab (Netz weg, Import bei LiveVoice neu gestartet), versucht das Gerät
+        es nach 2, 5, 10, 15 und dann alle 30 Sekunden erneut - bis es klappt oder "Stream stoppen" gedrückt
+        wird. Lief der Stream bei einem Stromausfall, startet er nach dem Hochfahren von selbst wieder.</p>
     </section>
 
     <section class="card">
@@ -126,14 +141,31 @@
       <label for="recording_filename_prefix">Dateiname-Präfix</label>
       <input type="text" id="recording_filename_prefix" name="recording_filename_prefix"
              value="{{ cfg.recording_filename_prefix }}" maxlength="40" autocomplete="off">
-      <p class="hint">Aufnahmen heissen: "<span id="recording-filename-preview">{{ cfg.recording_filename_prefix }}</span>-{{ example_timestamp }}.wav"</p>
-      <p class="hint">Format: WAV, unkomprimiert, {{ "Stereo" if cfg.channels == 2 else "Mono" }},
-        {{ cfg.sample_rate }} Hz - dieselben Kanäle/Sample-Rate wie oben unter "Audio" eingestellt,
-        auch für den Stream zu LiveVoice (kein separates Downmixing auf Mono).</p>
+      <p class="hint">Aufnahmen heissen: "<span id="recording-filename-preview">{{ cfg.recording_filename_prefix }}</span>-{{ example_timestamp }}.<span id="recording-extension-preview">{{ recording_formats[cfg.recording_format].extension if cfg.recording_format in recording_formats else "wav" }}</span>"</p>
+
+      <label for="recording_format">Dateiformat</label>
+      <select id="recording_format" name="recording_format">
+        {% for key, fmt in recording_formats.items() %}
+          <option value="{{ key }}" data-extension="{{ fmt.extension }}" {{ "selected" if cfg.recording_format == key else "" }}>{{ fmt.label }}</option>
+        {% endfor %}
+      </select>
+      <p class="hint">WAV: maximal kompatibel, bei Stromausfall/hartem Abschalten aber oft nicht mehr lesbar.
+        FLAC: verlustfrei, etwa halb so gross und bis zur Abbruchstelle lesbar - empfohlen.
+        MKA: wie MKV bei OBS, unkomprimiert und absturzsicher, von Schnittprogrammen aber seltener direkt geöffnet.</p>
+      <p class="hint">{{ "Stereo" if cfg.channels == 2 else "Mono" }}, {{ cfg.sample_rate }} Hz, 16 Bit - dieselben
+        Kanäle/Sample-Rate wie oben unter "Audio" eingestellt, auch für den Stream zu LiveVoice (kein separates
+        Downmixing auf Mono).</p>
     </section>
 
     <section class="card">
       <h2>Netzwerk</h2>
+
+      <label for="hostname">Gerätename</label>
+      <input type="text" id="hostname" name="hostname" value="{{ hostname }}" maxlength="63"
+             pattern="[A-Za-z0-9]([A-Za-z0-9\-]{0,61}[A-Za-z0-9])?" autocomplete="off">
+      <p class="hint">Unter diesem Namen ist das Gerät in jedem Netz erreichbar, ohne die IP-Adresse zu kennen:
+        <strong>http://<span id="hostname-preview">{{ hostname }}</span>.local</strong>
+        (iPad, Mac, Windows 10/11). Nur Buchstaben, Ziffern und Bindestriche.</p>
 
       <details class="advanced">
         <summary>Erweitert</summary>
@@ -253,11 +285,15 @@
         <h3>Anzeige</h3>
         <label class="checkbox-label">
           <input type="checkbox" name="hide_operator" value="1" {{ "checked" if cfg.hide_operator else "" }}>
-          LiveVoice-Operator-Bereich auf der Stream-Seite ausblenden
+          LiveVoice-Operator-Bereich im Cockpit ausblenden
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" name="hide_recording" value="1" {{ "checked" if cfg.hide_recording else "" }}>
+          Aufnahme-Bereich im Cockpit ausblenden
         </label>
 
         <h3>Zugriff</h3>
-        <label for="web_password">WebUI-Passwort (optional, leer lassen = unverändert)</label>
+        <label for="web_password">Cockpit-Passwort (Stream/Aufnahme bedienen, leer lassen = unverändert)</label>
         <div class="row-with-button">
           <input type="password" id="web_password" name="web_password" autocomplete="new-password"
                  placeholder="{{ 'gesetzt - zum Ändern neu eingeben' if cfg.web_password_set else 'kein Passwort gesetzt' }}">
@@ -265,8 +301,47 @@
                   aria-label="Passwort anzeigen">👁</button>
         </div>
         <label class="checkbox-label">
-          <input type="checkbox" name="clear_password" value="1"> Passwort entfernen
+          <input type="checkbox" name="clear_password" value="1"> Cockpit-Passwort entfernen
         </label>
+
+        <label for="admin_password">Admin-Passwort (Einstellungen, leer lassen = unverändert)</label>
+        <div class="row-with-button">
+          <input type="password" id="admin_password" name="admin_password" autocomplete="new-password"
+                 placeholder="{{ 'gesetzt - zum Ändern neu eingeben' if cfg.admin_password_set else 'kein Passwort gesetzt' }}">
+          <button type="button" class="btn-icon btn-secondary password-toggle" data-target="admin_password"
+                  aria-label="Passwort anzeigen">👁</button>
+        </div>
+        <label class="checkbox-label">
+          <input type="checkbox" name="clear_admin_password" value="1"> Admin-Passwort entfernen
+        </label>
+        <p class="hint">Mit dem Cockpit-Passwort kommt man nur ins Cockpit, mit dem Admin-Passwort auch in die
+          Einstellungen. Ist kein Admin-Passwort gesetzt, öffnet das Cockpit-Passwort wie bisher beides. Ohne
+          Cockpit-Passwort ist das Cockpit frei bedienbar.</p>
+
+        <h3>Update</h3>
+        <dl class="status-grid">
+          <dt>Installiert</dt>
+          <dd id="update-current">{{ update_status.current_summary or "unbekannt (noch nie per Update installiert)" }}</dd>
+          <dt>Zuletzt geprüft</dt>
+          <dd id="update-last-check">{{ update_status.last_check or "-" }}</dd>
+        </dl>
+        <p class="hint" id="update-message" {{ "hidden" if not update_status.message else "" }}>{{ update_status.message or "" }}</p>
+        <ul class="hint update-commits" id="update-commits"></ul>
+        <div class="button-row">
+          <button type="button" id="update-check" class="btn btn-secondary">Nach Updates suchen</button>
+          <button type="button" id="update-install" class="btn btn-start" hidden>Jetzt installieren</button>
+        </div>
+        <label class="checkbox-label">
+          <input type="checkbox" name="update_auto" value="1" {{ "checked" if cfg.update_auto else "" }}>
+          Updates automatisch installieren (Prüfung alle 6 Std., nur wenn weder Stream noch Aufnahme laufen)
+        </label>
+        <label for="update_repo_url">Update-Quelle (Git-Repository)</label>
+        <input type="text" id="update_repo_url" name="update_repo_url" value="{{ cfg.update_repo_url }}"
+               placeholder="https://github.com/..." autocomplete="off">
+        <label for="update_branch">Branch</label>
+        <input type="text" id="update_branch" name="update_branch" value="{{ cfg.update_branch }}" autocomplete="off">
+        <p class="hint">Installieren startet den Dienst kurz neu und ist nur möglich, solange weder Stream noch
+          Aufnahme laufen. Einstellungen, Passwörter und WLANs bleiben erhalten.</p>
 
         <h3>Diagnose</h3>
         <label for="log_level">Log-Level</label>

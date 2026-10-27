@@ -4,7 +4,21 @@ __pycache__/
 venv/
 .venv/
 instance/config.json
+instance/config.json.bak
+instance/config.json.tmp
+instance/runtime.json
+instance/runtime.json.tmp
 instance/secret_key
+
+# Laufzeitdateien des Dienstbenutzers im Programmverzeichnis (sein Home) -
+# dürfen bei einem Update per "git reset --hard" nie angefasst werden.
+.asoundrc
+.asoundrc.tmp
+.ssh/
+.cache/
+.config/
+.local/
+.gitconfig
 
 # Design-Quellkit (lokal, nicht versioniert)
 DESIGN/

@@ -1,5 +1,6 @@
 """Start/Stop-Verwaltung des ffmpeg-Prozesses, der unabhängig vom Stream
-das Eingangssignal verlustfrei als WAV auf ein Ziel (USB-Stick) aufzeichnet.
+das Eingangssignal verlustfrei (WAV, FLAC oder MKA, siehe RECORDING_FORMATS)
+auf ein Ziel (USB-Stick) aufzeichnet.
 
 Liest über den geteilten ALSA-Capture-Alias `SHARED_CAPTURE_DEVICE` (siehe
 app/config.py und DEPLOY.md), nicht über das rohe `plughw:`-Gerät aus den
@@ -33,6 +34,36 @@ _LOG_TAIL_LINES = 200
 logger = logging.getLogger(__name__)
 
 
+@dataclass(frozen=True)
+class RecordingFormat:
+    extension: str
+    label: str
+    # ffmpeg-Argumente für Codec + Container
+    ffmpeg_args: tuple[str, ...]
+    # Grobe Dateigrösse im Verhältnis zu unkomprimiertem 16-Bit-PCM, für die
+    # Restlaufzeit-Schätzung auf dem Cockpit (system.estimate_recording_seconds).
+    # FLAC bewusst vorsichtig geschätzt (real meist 0.4-0.6, bei Rauschen mehr).
+    size_factor: float
+
+
+RECORDING_FORMATS: dict[str, RecordingFormat] = {
+    # `-rf64 auto`: ab 4 GB (bei 48 kHz Stereo nach ~6 Std.) schreibt ffmpeg
+    # automatisch einen RF64-Header statt still eine kaputte Datei zu erzeugen.
+    "wav": RecordingFormat("wav", "WAV (unkomprimiert)", ("-c:a", "pcm_s16le", "-rf64", "auto", "-f", "wav"), 1.0),
+    # FLAC: verlustfrei, etwa halb so gross; die Datei besteht aus
+    # unabhängigen Frames und ist nach einem Stromausfall bis zur
+    # Abbruchstelle abspielbar (WAV dagegen zeigt dann oft 0 Sekunden Länge).
+    "flac": RecordingFormat("flac", "FLAC (verlustfrei komprimiert)", ("-c:a", "flac", "-f", "flac"), 0.75),
+    # MKA = Matroska-Audio, das Gegenstück zu OBS' MKV: unkomprimiertes PCM,
+    # absturzsicher, aber von DAWs seltener direkt geöffnet als WAV/FLAC.
+    "mka": RecordingFormat("mka", "MKA (Matroska, unkomprimiert)", ("-c:a", "pcm_s16le", "-f", "matroska"), 1.0),
+}
+
+
+def recording_format(name: str) -> RecordingFormat:
+    return RECORDING_FORMATS.get(name, RECORDING_FORMATS["wav"])
+
+
 def build_ffmpeg_record_cmd(cfg: StreamerConfig, output_path: str, ffmpeg_bin: str = "ffmpeg") -> list[str]:
     if not output_path:
         raise ValueError("output_path ist nicht gesetzt")
@@ -46,15 +77,14 @@ def build_ffmpeg_record_cmd(cfg: StreamerConfig, output_path: str, ffmpeg_bin: s
         "-channels", str(cfg.channels),
         "-sample_rate", str(cfg.sample_rate),
         "-i", SHARED_CAPTURE_DEVICE,
-        "-c:a", "pcm_s16le",
-        "-f", "wav",
+        *recording_format(cfg.recording_format).ffmpeg_args,
         output_path,
     ]
 
 
-def recording_filename(prefix: str, now: datetime | None = None) -> str:
+def recording_filename(prefix: str, now: datetime | None = None, extension: str = "wav") -> str:
     now = now or datetime.now()
-    return f"{prefix}-{now:%Y%m%d-%H%M%S}.wav"
+    return f"{prefix}-{now:%Y%m%d-%H%M%S}.{extension}"
 
 
 @dataclass
@@ -98,7 +128,12 @@ class RecordingManager:
             if not target_path.is_dir():
                 raise RuntimeError(f"Aufnahme-Ziel nicht erreichbar: {target_dir}")
 
-            output_path = str(target_path / recording_filename(cfg.recording_filename_prefix))
+            output_path = str(
+                target_path
+                / recording_filename(
+                    cfg.recording_filename_prefix, extension=recording_format(cfg.recording_format).extension
+                )
+            )
 
             self._last_error = None
             self._last_exit_code = None

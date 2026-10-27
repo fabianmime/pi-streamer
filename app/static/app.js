@@ -74,13 +74,26 @@
     return [h, m, sec].map((v) => String(v).padStart(2, "0")).join(":");
   }
 
+  const reconnectsEl = document.getElementById("status-reconnects");
+
   function render(status) {
-    lastKnownRunning = status.running;
-    dot.classList.remove("running", "stopped", "error");
+    // Während des automatischen Neuverbindens gilt der Stream als "soll
+    // laufen" - der Knopf stoppt dann das Neuverbinden.
+    lastKnownRunning = status.running || status.reconnecting;
+    dot.classList.remove("running", "stopped", "error", "reconnecting");
 
     if (status.running) {
       dot.classList.add("running");
       text.textContent = "Streaming läuft";
+      toggleBtn.textContent = "Stream stoppen";
+      toggleBtn.classList.remove("btn-start");
+      toggleBtn.classList.add("btn-stop");
+    } else if (status.reconnecting) {
+      dot.classList.add("reconnecting");
+      const secs = Math.ceil(status.reconnect_in_seconds || 0);
+      text.textContent =
+        `Verbindung unterbrochen - neuer Versuch (${status.reconnect_attempt}) ` +
+        (secs > 0 ? `in ${secs} s` : "läuft...");
       toggleBtn.textContent = "Stream stoppen";
       toggleBtn.classList.remove("btn-start");
       toggleBtn.classList.add("btn-stop");
@@ -98,12 +111,15 @@
       toggleBtn.classList.add("btn-start");
     }
 
-    toggleBtn.disabled = busy || (!status.running && !status.config_ready);
-    if (!status.config_ready && !status.running) {
+    toggleBtn.disabled = busy || (!lastKnownRunning && !status.config_ready);
+    if (!status.config_ready && !lastKnownRunning) {
       toggleBtn.textContent = "Erst Einstellungen ausfüllen";
     }
 
     uptimeEl.textContent = formatUptime(status.uptime_seconds);
+    if (reconnectsEl) {
+      reconnectsEl.textContent = status.reconnects_total ? `${status.reconnects_total}×` : "-";
+    }
 
     if (status.last_error) {
       errorRowEl.hidden = false;
@@ -403,6 +419,131 @@
     filenamePrefixInput.addEventListener("input", () => {
       filenamePreviewEl.textContent = filenamePrefixInput.value || "Aufnahme";
     });
+  }
+  const formatSelect = document.getElementById("recording_format");
+  const extensionPreviewEl = document.getElementById("recording-extension-preview");
+  if (formatSelect && extensionPreviewEl) {
+    formatSelect.addEventListener("change", () => {
+      const opt = formatSelect.options[formatSelect.selectedIndex];
+      extensionPreviewEl.textContent = (opt && opt.dataset.extension) || "wav";
+    });
+  }
+  const hostnameInput = document.getElementById("hostname");
+  const hostnamePreviewEl = document.getElementById("hostname-preview");
+  if (hostnameInput && hostnamePreviewEl) {
+    hostnameInput.addEventListener("input", () => {
+      hostnamePreviewEl.textContent = hostnameInput.value || "…";
+    });
+  }
+
+  // Einstellungen -> Weitere Einstellungen -> Update: Prüfen/Installieren
+  // laufen serverseitig im Hintergrund (app/updater.py), hier wird nur der
+  // Status gepollt. Nach "Installieren" startet der Dienst neu - danach
+  // wird die Seite automatisch neu geladen, sobald er wieder antwortet.
+  const updateCheckBtn = document.getElementById("update-check");
+  const updateInstallBtn = document.getElementById("update-install");
+  if (updateCheckBtn && updateInstallBtn) {
+    const updateMessageEl = document.getElementById("update-message");
+    const updateCurrentEl = document.getElementById("update-current");
+    const updateLastCheckEl = document.getElementById("update-last-check");
+    const updateCommitsEl = document.getElementById("update-commits");
+    let updatePollTimer = null;
+
+    function renderUpdate(s) {
+      const active = s.state === "checking" || s.state === "installing" || s.state === "restarting";
+      if (updateMessageEl) {
+        let msg = s.message || "";
+        if (s.state === "checking") msg = "Suche nach Updates...";
+        if (!s.configured) msg = "Keine Update-Quelle eingetragen.";
+        updateMessageEl.textContent = msg;
+        updateMessageEl.hidden = !msg;
+        updateMessageEl.classList.toggle("error", s.state === "error");
+      }
+      if (updateCurrentEl && s.current_summary) updateCurrentEl.textContent = s.current_summary;
+      if (updateLastCheckEl) updateLastCheckEl.textContent = s.last_check || "-";
+      if (updateCommitsEl) {
+        updateCommitsEl.innerHTML = "";
+        (s.update_available ? s.pending_commits || [] : []).forEach((line) => {
+          const li = document.createElement("li");
+          li.textContent = line;
+          updateCommitsEl.appendChild(li);
+        });
+      }
+      updateCheckBtn.disabled = active || !s.configured;
+      updateInstallBtn.hidden = !s.update_available;
+      updateInstallBtn.disabled = active || s.busy;
+      updateInstallBtn.title = s.busy ? "Erst Stream und Aufnahme stoppen" : "";
+      return active;
+    }
+
+    async function pollUpdate() {
+      try {
+        const res = await fetch("/api/update/status");
+        if (!res.ok) return;
+        const s = await res.json();
+        const active = renderUpdate(s);
+        if (s.state === "restarting") {
+          waitForRestart();
+          return;
+        }
+        if (active) {
+          updatePollTimer = setTimeout(pollUpdate, 1500);
+        }
+      } catch (e) {
+        updatePollTimer = setTimeout(pollUpdate, 3000);
+      }
+    }
+
+    function waitForRestart() {
+      // Dienst ist kurz weg und kommt mit dem neuen Code zurück.
+      setTimeout(async function retry() {
+        try {
+          const res = await fetch("/api/update/status", { cache: "no-store" });
+          if (res.ok) {
+            const s = await res.json();
+            if (s.state !== "restarting") {
+              window.location.reload();
+              return;
+            }
+          }
+        } catch (e) {
+          /* noch nicht wieder da */
+        }
+        setTimeout(retry, 2000);
+      }, 4000);
+    }
+
+    async function startUpdateAction(url) {
+      updateCheckBtn.disabled = true;
+      updateInstallBtn.disabled = true;
+      try {
+        const res = await fetch(url, { method: "POST" });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          if (updateMessageEl) {
+            updateMessageEl.textContent = data.error || "Fehlgeschlagen.";
+            updateMessageEl.hidden = false;
+            updateMessageEl.classList.add("error");
+          }
+        }
+      } finally {
+        clearTimeout(updatePollTimer);
+        setTimeout(pollUpdate, 500);
+      }
+    }
+
+    updateCheckBtn.addEventListener("click", () => startUpdateAction("/api/update/check"));
+    updateInstallBtn.addEventListener("click", () => {
+      if (
+        window.confirm(
+          "Update jetzt installieren? Der Dienst startet dabei kurz neu (ca. 10-30 Sekunden), " +
+            "Einstellungen bleiben erhalten."
+        )
+      ) {
+        startUpdateAction("/api/update/install");
+      }
+    });
+    pollUpdate();
   }
 
   // Aufnahme-Sektion (Teil der Settings-Seite): USB-Sticks suchen,

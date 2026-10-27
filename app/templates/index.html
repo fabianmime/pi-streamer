@@ -35,7 +35,7 @@
       {% endif %}
       <p id="level-meter-hint" class="hint" hidden>Kein Eingangssignal erkannt - Gerät angeschlossen?</p>
     </div>
-    {% if recording_target %}
+    {% if recording_target and not hide_recording %}
       <div class="storage-mini">
         <span class="storage-mini-label">USB-Speicher (Aufnahme-Ziel)</span>
         <span id="storage-mini-value">-</span>
@@ -57,6 +57,7 @@
       <dt>Bitrate</dt><dd id="status-bitrate">-</dd>
       <dt>Sample-Rate</dt><dd id="status-samplerate">-</dd>
       <dt>Audio-Gerät</dt><dd id="status-device">-</dd>
+      <dt>Neu verbunden</dt><dd id="status-reconnects">-</dd>
     </dl>
     <div id="status-error-row" class="error-row" hidden>
       <p id="status-error" class="error"></p>
@@ -64,6 +65,7 @@
     </div>
   </section>
 
+  {% if not hide_recording %}
   <section class="card">
     <h2>Aufnahme</h2>
     <div class="stream-row">
@@ -87,6 +89,7 @@
         <a href="{{ url_for('settings_page') }}">Einstellungen</a> einen USB-Stick auswählen.</p>
     {% endif %}
   </section>
+  {% endif %}
 
   {% if not hide_operator %}
   <section class="card operator-card">

@@ -66,6 +66,55 @@ kein Bug dieses Projekts, sondern von LiveVoice so vorgegeben).
 - Hell/Dunkel-Theme, eigenes Login-Screen (kein Browser-Popup), Log-Level
   und Log-Download für die Fehlersuche nach einem Event.
 
+### Produktiv-Erweiterungen (27.10.2026)
+
+- **Auto-Reconnect:** Bricht der Stream ab (Netz weg, Import bei LiveVoice
+  neu gestartet), verbindet das Gerät selbst neu - nach 2, 5, 10, 15 und
+  danach alle 30 Sekunden, ohne Obergrenze, bis es klappt oder jemand
+  "Stream stoppen" drückt. Ein Überwachungs-Thread in `app/streamer.py`
+  erledigt das auch ohne geöffnetes Cockpit. Das Cockpit zeigt gelb
+  blinkend "Verbindung unterbrochen - neuer Versuch (n) in x s" und zählt
+  "Neu verbunden: n×". Lief der Stream bei einem Stromausfall gewollt
+  (zuletzt per Start, nicht per Stop), startet er nach dem Hochfahren von
+  selbst wieder (`instance/runtime.json`). Abschaltbar unter
+  Einstellungen → Verbindung.
+- **Zwei Passwortstufen:** Cockpit-Passwort (Stream/Aufnahme bedienen) und
+  Admin-Passwort (zusätzlich Einstellungen, WLAN, USB-Verwaltung, Power,
+  Logs, Update). Ohne Admin-Passwort öffnet das Cockpit-Passwort wie bisher
+  alles; ohne Cockpit-Passwort ist das Cockpit frei. Wird ein Passwort
+  geändert, verlieren damit angemeldete Sessions ihre Rechte (Fingerabdruck
+  des Passworts in der Session). Vergleich zeitkonstant, Session-Cookie
+  `SameSite=Lax` als einfacher CSRF-Schutz.
+- **Aufnahme-Bereich ausblendbar** (analog zum Operator-Bereich,
+  Einstellungen → Weitere Einstellungen → Anzeige).
+- **Aufnahmeformat wählbar:** WAV (Standard, jetzt mit `-rf64 auto` - keine
+  kaputten Dateien mehr über 4 GB / ~6 Std.), FLAC (verlustfrei, etwa halb
+  so gross, bleibt nach Stromausfall bis zur Abbruchstelle lesbar -
+  empfohlen) oder MKA (Matroska mit unkomprimiertem PCM, das Gegenstück zu
+  OBS' MKV). Die Restlaufzeit-Schätzung berücksichtigt das Format.
+- **Gerätename einstellbar** (Einstellungen → Netzwerk): setzt den Hostnamen
+  per `hostnamectl`, das Gerät ist dann in jedem Netz als
+  `http://<name>.local` erreichbar (mDNS/avahi). Braucht die Polkit-Regel
+  und die Sync-Unit aus DEPLOY.md, Abschnitt 4c.
+- **Update aus GitHub** (Einstellungen → Weitere Einstellungen → Update):
+  "Nach Updates suchen" zeigt die neuen Commits, "Jetzt installieren" holt
+  sie per `git fetch` + `git reset --hard`, installiert bei geänderter
+  `requirements.txt` die Pakete (bei Fehler Rückkehr zum alten Stand) und
+  startet den Dienst neu. Optional automatisch alle 6 Std., aber nur wenn
+  weder Stream noch Aufnahme laufen. Standardquelle:
+  `https://github.com/fabianmime/pi-streamer.git`, Branch `main`. Dateien
+  unter `systemd/` (root) werden nicht automatisch nachgezogen - die
+  Update-Karte weist darauf hin.
+- **Audio-Gerät über stabile ALSA-Kennung:** Neben `plughw:1,0` wird die
+  Kartenkennung (z.B. `WH62`) gespeichert. Hängt das Interface nach einem
+  Neustart an einer anderen Kartennummer (weiteres USB-Gerät eingesteckt),
+  wird die Einstellung automatisch nachgeführt statt still das falsche
+  Gerät zu streamen.
+- **Robuste Konfiguration:** `config.json` wird mit fsync geschrieben, die
+  vorherige Fassung bleibt als `config.json.bak`. Ist die Datei nach einem
+  Stromausfall leer/kaputt, startet der Dienst mit der Sicherung statt in
+  einer Absturzschleife.
+
 ## Marke / Icon
 
 Kopf-Logo und App-Icon (`app/static/brand/`) sind das eigens für dieses
@@ -484,8 +533,11 @@ Erstkonfiguration, iPad-Nutzung (Add-to-Homescreen), Update/Redeploy.
 
 ## Offene Punkte / Ideen
 
-Aktuell keine offenen Punkte dokumentiert. Die zuvor hier gelisteten Ideen
-(Powermanagement, USB-Speicherplatz auf dem Cockpit, Pi-Systemauslastung)
-sind umgesetzt - siehe "WebUI im Detail" (Cockpit; Einstellungen → System
-ganz oben; Power-Icons im Header) und DEPLOY.md (Polkit-Regel fürs
-Herunterfahren/Neustarten).
+- **Schreibgeschütztes Dateisystem (Overlay) bewusst NICHT umgesetzt:** Mit
+  dem Overlay von `raspi-config` gingen nach jedem Neustart Einstellungen,
+  WLANs, Gerätename und installierte Updates verloren. Sauber ginge das nur
+  mit einer separaten beschreibbaren Datenpartition (SD-Karte neu
+  partitionieren). Stattdessen: Config mit fsync + Sicherung (siehe oben)
+  und Herunterfahren über den Power-Knopf.
+- Bedienungsanleitung für Operator (kommt mit dem GitHub-Auftritt).
+- Aufnahme nach Stromausfall automatisch fortsetzen (heute nur der Stream).

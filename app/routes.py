@@ -1,14 +1,16 @@
 from __future__ import annotations
 
+import hashlib
+import hmac
 import logging
 import os
 import threading
 from dataclasses import asdict
 from datetime import datetime
 
-from flask import Flask, Response, jsonify, redirect, render_template, request, session, url_for
+from flask import Flask, Response, current_app, jsonify, redirect, render_template, request, session, url_for
 
-from . import configure_logging, logs, storage, system, wifi
+from . import configure_logging, logs, recorder, storage, system, wifi
 from .config import VALID_BITRATES_KBPS, VALID_LOG_LEVELS, VALID_SAMPLE_RATES, StreamerConfig
 
 logger = logging.getLogger(__name__)
@@ -41,12 +43,34 @@ def _settings_context(state, **extra) -> dict:
         # Dateiname-Präfix-Hinweis (Einstellungen -> Aufnahme) - selbes
         # Format wie recorder.py::recording_filename.
         "example_timestamp": datetime.now().strftime("%Y%m%d-%H%M%S"),
+        "recording_formats": recorder.RECORDING_FORMATS,
+        "hostname": system.current_hostname(),
+        "update_status": state.updater.status(),
     }
     context.update(extra)
     return context
 
 
 _PUBLIC_ENDPOINTS = {"login", "login_submit", "logout", "static"}
+
+# Was mit dem Cockpit-Passwort erreichbar ist: Stream/Aufnahme bedienen und
+# ihren Status sehen. Alles andere (Einstellungen, WLAN, USB-Verwaltung,
+# Power, Logs, Update) braucht - falls gesetzt - das Admin-Passwort.
+_COCKPIT_ENDPOINTS = {
+    "index",
+    "api_status",
+    "api_start",
+    "api_stop",
+    "api_stream_dismiss_error",
+    "api_audio_level",
+    "api_recording_status",
+    "api_recording_start",
+    "api_recording_stop",
+    "api_recording_dismiss_error",
+}
+
+ROLE_USER = "user"
+ROLE_ADMIN = "admin"
 
 
 def _safe_next_url(raw: str | None) -> str | None:
@@ -56,39 +80,109 @@ def _safe_next_url(raw: str | None) -> str | None:
     return None
 
 
+def _password_fingerprint(password: str) -> str:
+    """Kennung des Passworts, mit dem eine Session angemeldet wurde - wird
+    das Passwort geändert/entfernt, verliert die Session ihre Rechte, statt
+    30 Tage lang mit dem alten Passwort weiterzugelten."""
+    key = str(current_app.secret_key).encode("utf-8")
+    return hmac.new(key, password.encode("utf-8"), hashlib.sha256).hexdigest()[:32]
+
+
+def _password_matches(submitted: str, expected: str) -> bool:
+    return bool(expected) and hmac.compare_digest(submitted.encode("utf-8"), expected.encode("utf-8"))
+
+
+def required_role(cfg: StreamerConfig, endpoint: str | None) -> str | None:
+    """None = frei zugänglich. Ohne Admin-Passwort schützt das
+    Cockpit-Passwort wie bisher alles; ohne Cockpit-Passwort ist das Cockpit
+    offen, die Einstellungen aber trotzdem per Admin-Passwort geschützt."""
+    if endpoint in _PUBLIC_ENDPOINTS:
+        return None
+    if endpoint in _COCKPIT_ENDPOINTS:
+        return ROLE_USER if cfg.web_password else None
+    if cfg.admin_password:
+        return ROLE_ADMIN
+    return ROLE_USER if cfg.web_password else None
+
+
+def effective_role(cfg: StreamerConfig) -> str | None:
+    role = session.get("role")
+    fingerprint = session.get("fp")
+    if role == ROLE_ADMIN and cfg.admin_password and fingerprint == _password_fingerprint(cfg.admin_password):
+        return ROLE_ADMIN
+    if role in (ROLE_USER, ROLE_ADMIN) and cfg.web_password and fingerprint == _password_fingerprint(cfg.web_password):
+        return ROLE_USER
+    return None
+
+
+def _role_satisfies(have: str | None, need: str | None) -> bool:
+    if need is None:
+        return True
+    if need == ROLE_USER:
+        return have in (ROLE_USER, ROLE_ADMIN)
+    return have == ROLE_ADMIN
+
+
+def _grant_session(role: str, password: str) -> None:
+    session.permanent = True
+    session["role"] = role
+    session["fp"] = _password_fingerprint(password)
+
+
 def register(app: Flask) -> None:
     state = app.state  # type: ignore[attr-defined]
 
     @app.before_request
     def require_login():
-        password = state.config.web_password
-        if not password:
-            return None
-        if request.endpoint in _PUBLIC_ENDPOINTS:
-            return None
-        if session.get("authenticated"):
+        need = required_role(state.config, request.endpoint)
+        have = effective_role(state.config)
+        if _role_satisfies(have, need):
             return None
         if request.path.startswith("/api/"):
-            return jsonify({"error": "Nicht angemeldet."}), 401
-        return redirect(url_for("login", next=request.full_path if request.query_string else request.path))
+            message = "Admin-Anmeldung erforderlich." if have else "Nicht angemeldet."
+            return jsonify({"error": message}), 401 if not have else 403
+        return redirect(
+            url_for(
+                "login",
+                next=request.full_path if request.query_string else request.path,
+                admin=1 if need == ROLE_ADMIN else None,
+            )
+        )
+
+    @app.context_processor
+    def inject_auth():
+        cfg = state.config
+        return {
+            "logged_in_role": effective_role(cfg),
+            "any_password_set": bool(cfg.web_password or cfg.admin_password),
+        }
 
     @app.get("/login")
     def login():
-        if not state.config.web_password or session.get("authenticated"):
-            return redirect(url_for("index"))
-        return render_template("login.html", error=None, next=_safe_next_url(request.args.get("next")) or "")
+        next_url = _safe_next_url(request.args.get("next")) or ""
+        need_admin = bool(request.args.get("admin")) and bool(state.config.admin_password)
+        need = ROLE_ADMIN if need_admin else (ROLE_USER if state.config.web_password else None)
+        if need is None or _role_satisfies(effective_role(state.config), need):
+            return redirect(next_url or url_for("index"))
+        return render_template("login.html", error=None, next=next_url, need_admin=need_admin)
 
     @app.post("/login")
     def login_submit():
         submitted = request.form.get("password", "")
         next_url = _safe_next_url(request.form.get("next"))
-        if submitted and state.config.web_password and submitted == state.config.web_password:
-            session.permanent = True
-            session["authenticated"] = True
-            logger.info("WebUI-Login erfolgreich")
+        need_admin = bool(request.form.get("need_admin"))
+        cfg = state.config
+        if _password_matches(submitted, cfg.admin_password):
+            _grant_session(ROLE_ADMIN, cfg.admin_password)
+            logger.info("WebUI-Login erfolgreich (Admin)")
+            return redirect(next_url or url_for("index"))
+        if not need_admin and _password_matches(submitted, cfg.web_password):
+            _grant_session(ROLE_USER, cfg.web_password)
+            logger.info("WebUI-Login erfolgreich (Cockpit)")
             return redirect(next_url or url_for("index"))
         logger.warning("WebUI-Login fehlgeschlagen")
-        return render_template("login.html", error="Falsches Passwort.", next=next_url or ""), 401
+        error = "Falsches Admin-Passwort." if need_admin else "Falsches Passwort."
+        return render_template("login.html", error=error, next=next_url or "", need_admin=need_admin), 401
 
     @app.route("/logout", methods=["GET", "POST"])
     def logout():
@@ -101,6 +195,7 @@ def register(app: Flask) -> None:
             "index.html",
             operator_url=state.config.operator_url,
             hide_operator=state.config.hide_operator,
+            hide_recording=state.config.hide_recording,
             cfg_bitrate=state.config.bitrate_kbps,
             cfg_sample_rate=state.config.sample_rate,
             cfg_device=state.config.audio_device,
@@ -115,28 +210,49 @@ def register(app: Flask) -> None:
     @app.post("/settings")
     def save_settings():
         form = request.form
-        old_port = state.config.web_port
+        old = state.config
+        old_port = old.web_port
         new_cfg = StreamerConfig(
             srt_url=form.get("srt_url", "").strip(),
             operator_url=form.get("operator_url", "").strip(),
             audio_device=form.get("audio_device", "").strip(),
-            channels=int(form.get("channels", state.config.channels)),
-            sample_rate=int(form.get("sample_rate", state.config.sample_rate)),
-            bitrate_kbps=int(form.get("bitrate_kbps", state.config.bitrate_kbps)),
-            web_password=form.get("web_password", "") or state.config.web_password,
-            web_port=int(form.get("web_port", state.config.web_port) or state.config.web_port),
+            audio_card_id=old.audio_card_id,
+            channels=int(form.get("channels", old.channels)),
+            sample_rate=int(form.get("sample_rate", old.sample_rate)),
+            bitrate_kbps=int(form.get("bitrate_kbps", old.bitrate_kbps)),
+            web_password=form.get("web_password", "") or old.web_password,
+            admin_password=form.get("admin_password", "") or old.admin_password,
+            web_port=int(form.get("web_port", old.web_port) or old.web_port),
             hide_operator=bool(form.get("hide_operator")),
-            log_level=form.get("log_level", state.config.log_level) or state.config.log_level,
-            recording_target=form.get("recording_target", state.config.recording_target).strip(),
-            recording_filename_prefix=form.get(
-                "recording_filename_prefix", state.config.recording_filename_prefix
-            ).strip(),
+            hide_recording=bool(form.get("hide_recording")),
+            log_level=form.get("log_level", old.log_level) or old.log_level,
+            recording_target=form.get("recording_target", old.recording_target).strip(),
+            recording_filename_prefix=form.get("recording_filename_prefix", old.recording_filename_prefix).strip(),
+            recording_format=form.get("recording_format", old.recording_format) or old.recording_format,
+            stream_auto_reconnect=bool(form.get("stream_auto_reconnect")),
+            update_repo_url=form.get("update_repo_url", old.update_repo_url).strip(),
+            update_branch=form.get("update_branch", old.update_branch).strip() or old.update_branch,
+            update_auto=bool(form.get("update_auto")),
         )
         if form.get("clear_password"):
             new_cfg.web_password = ""
+        if form.get("clear_admin_password"):
+            new_cfg.admin_password = ""
+        # Anderes Gerät gewählt -> alte Kartenkennung verwerfen, die
+        # Synchronisierung unten setzt die passende neu.
+        if new_cfg.audio_device != old.audio_device:
+            new_cfg.audio_card_id = ""
+
+        new_hostname = form.get("hostname", "").strip()
+        current_hostname = system.current_hostname()
+        hostname_changed = bool(new_hostname) and new_hostname != current_hostname
 
         try:
             new_cfg.validated()
+            if hostname_changed:
+                hostname_error = system.validate_hostname(new_hostname)
+                if hostname_error:
+                    raise ValueError(hostname_error)
         except ValueError as exc:
             return render_template(
                 "settings.html", **_settings_context(state, cfg=new_cfg.to_public_dict(), error=str(exc))
@@ -151,13 +267,37 @@ def register(app: Flask) -> None:
         state.sync_dsnoop_config()
         logger.info("Einstellungen gespeichert (log_level=%s)", new_cfg.log_level)
 
+        # Wer speichern durfte, bleibt angemeldet - auch wenn hier gerade
+        # ein (neues) Passwort gesetzt wurde, das die eigene Session sonst
+        # sofort aussperren würde.
+        if new_cfg.admin_password:
+            _grant_session(ROLE_ADMIN, new_cfg.admin_password)
+        elif new_cfg.web_password:
+            _grant_session(ROLE_USER, new_cfg.web_password)
+
+        hostname_error = None
+        if hostname_changed:
+            ok, hostname_error = system.set_hostname(new_hostname)
+            if ok:
+                logger.info("Gerätename geändert: %s -> %s", current_hostname, new_hostname)
+            else:
+                logger.warning("Gerätename konnte nicht geändert werden: %s", hostname_error)
+
         port_changed = new_cfg.web_port != old_port
         if port_changed:
             logger.info("WebUI-Port geändert: %s -> %s, Dienst startet neu", old_port, new_cfg.web_port)
             _schedule_restart()
 
         return render_template(
-            "settings.html", **_settings_context(state, saved=True, port_changed=port_changed, new_port=new_cfg.web_port)
+            "settings.html",
+            **_settings_context(
+                state,
+                saved=True,
+                port_changed=port_changed,
+                new_port=new_cfg.web_port,
+                hostname_changed=hostname_changed and not hostname_error,
+                error=f"Gerätename nicht geändert: {hostname_error}" if hostname_error else None,
+            ),
         )
 
     @app.get("/api/status")
@@ -214,7 +354,12 @@ def register(app: Flask) -> None:
         free_bytes = storage.free_space_bytes(target) if target else None
         payload["target_free_bytes"] = free_bytes
         payload["target_estimated_seconds"] = (
-            system.estimate_recording_seconds(free_bytes, state.config.channels, state.config.sample_rate)
+            system.estimate_recording_seconds(
+                free_bytes,
+                state.config.channels,
+                state.config.sample_rate,
+                recorder.recording_format(state.config.recording_format).size_factor,
+            )
             if free_bytes is not None
             else None
         )
@@ -439,6 +584,34 @@ def register(app: Flask) -> None:
             return jsonify({"error": error}), 400
         logger.info("%s ausgelöst", action)
         return jsonify({"ok": True})
+
+    @app.get("/api/update/status")
+    def api_update_status():
+        payload = state.updater.status()
+        payload["configured"] = bool(state.config.update_repo_url)
+        payload["busy"] = state.is_busy()
+        return jsonify(payload)
+
+    @app.post("/api/update/check")
+    def api_update_check():
+        cfg = state.config
+        if not cfg.update_repo_url:
+            return jsonify({"error": "Keine Update-Quelle eingetragen."}), 400
+        state.updater.start_async(lambda: state.updater.check(cfg.update_repo_url, cfg.update_branch))
+        return jsonify({"started": True}), 202
+
+    @app.post("/api/update/install")
+    def api_update_install():
+        cfg = state.config
+        if not cfg.update_repo_url:
+            return jsonify({"error": "Keine Update-Quelle eingetragen."}), 400
+        if state.is_busy():
+            return jsonify({"error": "Erst Stream und Aufnahme stoppen, dann aktualisieren."}), 409
+        logger.info("Update-Installation über WebUI angestossen")
+        state.updater.start_async(
+            lambda: state.updater.install(cfg.update_repo_url, cfg.update_branch, state.is_busy)
+        )
+        return jsonify({"started": True}), 202
 
     @app.get("/api/logs/download")
     def download_logs():
