@@ -40,7 +40,6 @@ _T0 = time.monotonic()
 def _patch_system() -> None:
     audio.list_capture_devices = lambda timeout=5.0: [
         AudioDevice(hw_id="plughw:1,0", card_id="USB", card_name="Focusrite Scarlett 2i2", device_name="USB Audio"),
-        AudioDevice(hw_id="plughw:2,0", card_id="WH62", card_name="Yealink WH62", device_name="USB Audio"),
     ]
     audio.write_dsnoop_config = lambda *a, **kw: None
     storage.list_usb_drives = lambda timeout=5.0: [

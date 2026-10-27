@@ -198,7 +198,7 @@ def test_sync_dsnoop_follows_card_when_its_number_changed(tmp_path, monkeypatch)
 
     state = AppState(config_path=tmp_path / "config.json")
     state.config.audio_device = "plughw:1,0"
-    state.config.audio_card_id = "WH62"
+    state.config.audio_card_id = "Scarlett"
     # Nach einem Neustart mit zusätzlichem USB-Gerät hängt das Headset an Karte 2,
     # an Karte 1 steckt jetzt etwas anderes.
     monkeypatch.setattr(
@@ -206,7 +206,7 @@ def test_sync_dsnoop_follows_card_when_its_number_changed(tmp_path, monkeypatch)
         "refresh_audio_devices",
         lambda: [
             AudioDevice(hw_id="plughw:1,0", card_id="Other", card_name="Anderes Gerät", device_name="USB Audio"),
-            AudioDevice(hw_id="plughw:2,0", card_id="WH62", card_name="Yealink WH62", device_name="USB Audio"),
+            AudioDevice(hw_id="plughw:2,0", card_id="Scarlett", card_name="Focusrite Scarlett 2i2", device_name="USB Audio"),
         ],
     )
     writes = []
@@ -214,7 +214,7 @@ def test_sync_dsnoop_follows_card_when_its_number_changed(tmp_path, monkeypatch)
 
     state.sync_dsnoop_config()
 
-    assert writes == [("WH62", state.config.channels, state.config.sample_rate)]
+    assert writes == [("Scarlett", state.config.channels, state.config.sample_rate)]
     assert state.config.audio_device == "plughw:2,0"
     assert load_config(tmp_path / "config.json").audio_device == "plughw:2,0"
 
@@ -227,13 +227,13 @@ def test_sync_dsnoop_remembers_card_id_of_selected_device(tmp_path, monkeypatch)
     monkeypatch.setattr(
         state,
         "refresh_audio_devices",
-        lambda: [AudioDevice(hw_id="plughw:1,0", card_id="WH62", card_name="Yealink WH62", device_name="USB Audio")],
+        lambda: [AudioDevice(hw_id="plughw:1,0", card_id="Scarlett", card_name="Focusrite Scarlett 2i2", device_name="USB Audio")],
     )
     monkeypatch.setattr(audio_module, "write_dsnoop_config", lambda *a, **kw: None)
 
     state.sync_dsnoop_config()
 
-    assert state.config.audio_card_id == "WH62"
+    assert state.config.audio_card_id == "Scarlett"
 
 
 # --- Stream nach Stromausfall fortsetzen ----------------------------------------

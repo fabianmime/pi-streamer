@@ -23,7 +23,7 @@ _CARD_LINE_RE = re.compile(
 @dataclass
 class AudioDevice:
     hw_id: str  # z.B. "plughw:1,0" - direkt als ffmpeg -i Wert nutzbar
-    card_id: str  # ALSA-Kurzkennung, z.B. "WH62" - fürs "hw:CARD=<id>,DEV=..." des dsnoop-Alias
+    card_id: str  # ALSA-Kurzkennung, z.B. "Scarlett" - fürs "hw:CARD=<id>,DEV=..." des dsnoop-Alias
     card_name: str
     device_name: str
 
@@ -87,7 +87,7 @@ def list_capture_devices(timeout: float = 5.0) -> list[AudioDevice]:
 def build_dsnoop_config_text(card_id: str, channels: int, sample_rate: int) -> str:
     """Baut die ALSA-Konfiguration für den geteilten Capture-Alias
     (SHARED_CAPTURE_DEVICE, siehe app/config.py) für genau eine Karte -
-    `card_id` ist die ALSA-Kurzkennung aus `arecord -l` (z.B. "WH62"), nicht
+    `card_id` ist die ALSA-Kurzkennung aus `arecord -l` (z.B. "Scarlett"), nicht
     der beschreibende Name in Klammern (siehe AudioDevice)."""
     return (
         "# Automatisch generiert von app/audio.py::write_dsnoop_config -\n"

@@ -106,14 +106,14 @@ def test_sync_dsnoop_config_writes_config_for_matching_device(tmp_path, monkeypa
     monkeypatch.setattr(
         state,
         "refresh_audio_devices",
-        lambda: [AudioDevice(hw_id="plughw:1,0", card_id="WH62", card_name="Yealink WH62", device_name="USB Audio")],
+        lambda: [AudioDevice(hw_id="plughw:1,0", card_id="Scarlett", card_name="Focusrite Scarlett 2i2", device_name="USB Audio")],
     )
     write_calls = []
     monkeypatch.setattr(audio_module, "write_dsnoop_config", lambda *a, **kw: write_calls.append((a, kw)))
 
     state.sync_dsnoop_config()
 
-    assert write_calls == [(("WH62", 2, 48000), {})]
+    assert write_calls == [(("Scarlett", 2, 48000), {})]
 
 
 def test_sync_dsnoop_config_skips_write_when_device_not_detected(tmp_path, monkeypatch):

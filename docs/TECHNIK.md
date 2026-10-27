@@ -109,7 +109,7 @@ kein Bug dieses Projekts, sondern von LiveVoice so vorgegeben).
   unter `systemd/` (root) werden nicht automatisch nachgezogen - die
   Update-Karte weist darauf hin.
 - **Audio-Gerät über stabile ALSA-Kennung:** Neben `plughw:1,0` wird die
-  Kartenkennung (z.B. `WH62`) gespeichert. Hängt das Interface nach einem
+  Kartenkennung (z.B. `USB`) gespeichert. Hängt das Interface nach einem
   Neustart an einer anderen Kartennummer (weiteres USB-Gerät eingesteckt),
   wird die Einstellung automatisch nachgeführt statt still das falsche
   Gerät zu streamen.
@@ -159,7 +159,7 @@ Zugriff auf die Steuerseite.
 
 `app/audio.py` liefert Geräte-Kennungen bewusst als `plughw:<card>,<device>`,
 nicht als rohes `hw:<card>,<device>` - das ist die Lehre aus einem echten
-Vorfall: ein Test-Headset (Yealink WH62) unterstützt hardwareseitig nur
+Vorfall: ein USB-Headset im Test unterstützte hardwareseitig nur
 Sample-Raten von 8-32 kHz. Die Konfiguration verlangte 48 kHz. Ein rohes
 `hw:`-Gerät verweigert eine nicht unterstützte Rate nicht mit einem Fehler,
 sondern klemmt sie still auf die nächstliegende Hardware-Rate herunter

@@ -62,9 +62,9 @@ def test_build_dsnoop_config_text_uses_card_id_not_card_name():
     # beschreibenden Namen in Klammern (card_name) - siehe DEPLOY.md-Beispiel
     # "card 1: Audio [Scarlett 2i2 USB]" -> Kennung "Audio", nicht
     # "Scarlett 2i2 USB".
-    text = build_dsnoop_config_text("WH62", channels=2, sample_rate=48000)
+    text = build_dsnoop_config_text("Scarlett", channels=2, sample_rate=48000)
 
-    assert 'pcm "hw:CARD=WH62,DEV=0"' in text
+    assert 'pcm "hw:CARD=Scarlett,DEV=0"' in text
     assert "channels 2" in text
     assert "rate 48000" in text
     assert "pcm.livevoice_dsnoop" in text
@@ -74,10 +74,10 @@ def test_build_dsnoop_config_text_uses_card_id_not_card_name():
 def test_write_dsnoop_config_writes_asoundrc(tmp_path):
     target = tmp_path / ".asoundrc"
 
-    write_dsnoop_config("WH62", channels=2, sample_rate=48000, path=target)
+    write_dsnoop_config("Scarlett", channels=2, sample_rate=48000, path=target)
 
     assert target.exists()
-    assert 'pcm "hw:CARD=WH62,DEV=0"' in target.read_text(encoding="utf-8")
+    assert 'pcm "hw:CARD=Scarlett,DEV=0"' in target.read_text(encoding="utf-8")
 
 
 def test_write_dsnoop_config_overwrites_existing_file(tmp_path):

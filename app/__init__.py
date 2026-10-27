@@ -120,7 +120,7 @@ class AppState:
         jedem Speichern der Einstellungen.
 
         Sucht das Gerät zuerst über seine stabile ALSA-Kurzkennung
-        (`audio_card_id`, z.B. "WH62") und erst dann über die Kartennummer
+        (`audio_card_id`, z.B. "Scarlett") und erst dann über die Kartennummer
         aus `audio_device` ("plughw:1,0"): die Nummer kann sich ändern, wenn
         beim Booten weitere USB-Geräte stecken - dann würde sonst still das
         falsche Gerät gestreamt. Hat sich die Nummer verschoben, wird

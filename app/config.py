@@ -60,7 +60,7 @@ class StreamerConfig:
     srt_url: str = ""
     operator_url: str = ""
     audio_device: str = ""
-    # ALSA-Kurzkennung (z.B. "WH62") des gewählten Geräts - stabil, anders
+    # ALSA-Kurzkennung (z.B. "Scarlett") des gewählten Geräts - stabil, anders
     # als die Kartennummer in `audio_device` ("plughw:1,0"), die sich ändern
     # kann, wenn weitere USB-Geräte stecken (siehe AppState.sync_dsnoop_config).
     audio_card_id: str = ""

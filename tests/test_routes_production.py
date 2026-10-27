@@ -228,7 +228,7 @@ def test_settings_post_rejects_unsafe_update_source(client, app):
 
 def test_changing_audio_device_resets_card_id(client, app):
     app.state.config.audio_device = "plughw:1,0"
-    app.state.config.audio_card_id = "WH62"
+    app.state.config.audio_card_id = "Scarlett"
 
     client.post("/settings", data={"audio_device": "plughw:2,0"})
 
