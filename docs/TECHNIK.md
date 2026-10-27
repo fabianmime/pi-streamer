@@ -9,7 +9,7 @@ angeschlossenes USB-Audio-Interface auf und streamt es per SRT zu
 kleines, iPad-taugliches WebUI auf dem Pi selbst; der LiveVoice-Operator
 (Übersetzungs-/Kanalsteuerung) wird im selben WebUI verlinkt (Button, neuer
 Tab) - es gibt keine eigene Integration in die LiveVoice-ActionCable-API
-(anders als ein separates Bitfocus-Companion-Modul des Autors),
+(anders als ein separates Bitfocus-Companion-Modul von meyer.productions),
 und die Operator-Seite lässt sich hier nicht einbetten (LiveVoice blockiert
 das serverseitig per `X-Frame-Options`, unabhängig vom Browser - das ist
 kein Bug dieses Projekts, sondern von LiveVoice so vorgegeben).
@@ -123,8 +123,8 @@ kein Bug dieses Projekts, sondern von LiveVoice so vorgegeben).
 Kopf-Logo und App-Icon (`app/static/brand/`) sind das eigens für dieses
 Projekt entworfene "LiveVoice Streamer"-Set (gleiche Kachel-Grammatik/Farben
 wie die Companion-Modul-Marke, aber eigenes Zeichen und eigene Wortmarke) -
-für einen einheitlichen, aber unterscheidbaren Auftritt über Fabians
-LiveVoice-Werkzeuge hinweg. `logo-lockup-{light,dark}.svg` im Header
+für einen einheitlichen, aber unterscheidbaren Auftritt über die
+LiveVoice-Werkzeuge von meyer.productions hinweg. `logo-lockup-{light,dark}.svg` im Header
 wechseln automatisch mit dem Theme; `icon-180-apple-touch.png` dient als
 `apple-touch-icon` fürs iPad "Zum Home-Bildschirm". Die Login-Seite zeigt
 bewusst immer nur die helle Variante (einfacher, auf Wunsch so belassen).

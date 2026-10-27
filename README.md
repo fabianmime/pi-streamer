@@ -153,4 +153,9 @@ dir eingetragene Stream-URL.
 
 ## Lizenz
 
-[MIT](LICENSE) © 2026 [meyer.productions](https://meyer.productions)
+© 2026 [meyer.productions](https://meyer.productions) – veröffentlicht unter der [MIT-Lizenz](LICENSE).
+
+Du darfst die Software frei nutzen, verändern und weitergeben, auch kommerziell,
+solange der Copyright-Hinweis und der Lizenztext erhalten bleiben. Die Software
+wird ohne Gewähr bereitgestellt. Die Marken- und Logo-Rechte am LiveVoice-Streamer-Design
+(`app/static/brand/`, `docs/brand/`) bleiben bei meyer.productions.
