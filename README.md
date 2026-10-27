@@ -79,7 +79,7 @@ iPad oder Smartphone. Parallel zeichnet das Gerät verlustfrei auf einen USB-Sti
 
 - Raspberry Pi 3 Model B oder neuer mit Raspberry Pi OS Lite (64 Bit, Debian 13 «trixie») –
   entwickelt und im Einsatz auf einem Pi 3 Model B
-- USB-Audio-Interface, das unter Linux ohne Treiber läuft (USB Audio Class) – getestet mit einem Yealink-WH62-USB-Headset
+- USB-Audio-Interface, das unter Linux ohne Treiber läuft (USB Audio Class) – getestet mit einem Focusrite-Interface
 - Netzwerk per LAN oder WLAN mit Internetzugang
 - Optional: USB-Stick für Aufnahmen
 - Ein LiveVoice-Event mit aktiviertem SRT-Import (Stream-URL inkl. Passphrase aus dem LiveVoice-Dashboard)
