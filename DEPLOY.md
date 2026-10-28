@@ -303,7 +303,7 @@ Projekt auf den Pi bringen - am einfachsten direkt aus GitHub (dann
 funktioniert auch die Update-Funktion im WebUI sofort):
 
 ```sh
-sudo -u rec git clone https://github.com/fabianmime/pi-streamer.git /opt/livevoice-streamer
+sudo -u rec git clone https://github.com/meyer-productions/pi-streamer.git /opt/livevoice-streamer
 ```
 
 Alternativ für die Entwicklung per `rsync` vom eigenen Rechner (das erste
@@ -403,7 +403,7 @@ LiveVoice ankommt.
 ## 11. Update / Redeploy
 
 **Normalfall: Update über das WebUI.** Code nach
-`https://github.com/fabianmime/pi-streamer` (Branch `main`) pushen, dann
+`https://github.com/meyer-productions/pi-streamer` (Branch `main`) pushen, dann
 Einstellungen → Weitere Einstellungen → Update → "Nach Updates suchen" →
 "Jetzt installieren" (geht nur, solange weder Stream noch Aufnahme laufen).
 Der erste Lauf macht aus einem per rsync installierten Verzeichnis einen

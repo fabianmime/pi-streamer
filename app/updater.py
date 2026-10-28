@@ -271,6 +271,23 @@ class Updater:
             180,
             "Update-Quelle nicht erreichbar",
         )
+        self._sync_origin(repo_url)
+
+    def _sync_origin(self, repo_url: str) -> None:
+        """Hält "origin" auf der Update-Quelle, damit auch ein manuelles
+        git pull auf dem Gerät vom richtigen Repo kommt (z.B. nach dem
+        Repo-Umzug zu meyer-productions). Fehler hier blockieren kein Update."""
+        try:
+            current = self._git(["remote", "get-url", "origin"], 10, "origin nicht lesbar")
+        except UpdateError:
+            return  # kein origin (per git init angelegt) - nichts umzustellen
+        if current == repo_url:
+            return
+        try:
+            self._git(["remote", "set-url", "origin", repo_url], 10, "origin nicht umstellbar")
+            logger.info("Git-Remote origin %s -> %s umgestellt", current, repo_url)
+        except UpdateError as exc:
+            logger.warning("%s", exc)
 
     def _compare(self) -> None:
         self._refresh_current()

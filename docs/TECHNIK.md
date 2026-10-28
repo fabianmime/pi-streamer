@@ -105,9 +105,12 @@ kein Bug dieses Projekts, sondern von LiveVoice so vorgegeben).
   `requirements.txt` die Pakete (bei Fehler Rückkehr zum alten Stand) und
   startet den Dienst neu. Optional automatisch alle 6 Std., aber nur wenn
   weder Stream noch Aufnahme laufen. Standardquelle:
-  `https://github.com/fabianmime/pi-streamer.git`, Branch `main`. Dateien
+  `https://github.com/meyer-productions/pi-streamer.git`, Branch `main`. Dateien
   unter `systemd/` (root) werden nicht automatisch nachgezogen - die
-  Update-Karte weist darauf hin.
+  Update-Karte weist darauf hin. Seit dem Repo-Umzug (28.10.2026) stellt
+  `load_config()` gespeicherte alte Quellen (`fabianmime/pi-streamer`)
+  automatisch auf die neue Adresse um, und jeder Fetch zieht `origin` auf
+  die eingestellte Update-Quelle nach.
 - **Audio-Gerät über stabile ALSA-Kennung:** Neben `plughw:1,0` wird die
   Kartenkennung (z.B. `USB`) gespeichert. Hängt das Interface nach einem
   Neustart an einer anderen Kartennummer (weiteres USB-Gerät eingesteckt),

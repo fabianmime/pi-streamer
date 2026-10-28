@@ -83,7 +83,7 @@ def test_validated_rejects_unknown_recording_format():
 
 @pytest.mark.parametrize(
     "url",
-    ["https://github.com/fabianmime/pi-streamer.git", "git@github.com:fabianmime/pi-streamer.git", ""],
+    ["https://github.com/meyer-productions/pi-streamer.git", "git@github.com:meyer-productions/pi-streamer.git", ""],
 )
 def test_validated_accepts_update_sources(url):
     assert StreamerConfig(update_repo_url=url).validated().update_repo_url == url
@@ -105,7 +105,7 @@ def test_validated_rejects_unsafe_update_branch(branch):
 
 def test_defaults_for_new_features():
     cfg = StreamerConfig()
-    assert cfg.update_repo_url == "https://github.com/fabianmime/pi-streamer.git"
+    assert cfg.update_repo_url == "https://github.com/meyer-productions/pi-streamer.git"
     assert cfg.update_branch == "main"
     assert cfg.update_auto is False
     assert cfg.stream_auto_reconnect is True
@@ -301,3 +301,30 @@ def test_is_busy_reflects_stream_and_recording(tmp_path):
         assert state.is_busy() is True
     finally:
         state.stream_manager.stop()
+
+
+@pytest.mark.parametrize(
+    "old_url",
+    [
+        "https://github.com/fabianmime/pi-streamer.git",
+        "https://github.com/fabianmime/pi-streamer",
+        "git@github.com:fabianmime/pi-streamer.git",
+    ],
+)
+def test_load_migrates_update_source_after_repo_move(tmp_path, old_url):
+    path = tmp_path / "config.json"
+    save_config(StreamerConfig(srt_url="srt://behalten", update_repo_url=old_url), path)
+
+    cfg = load_config(path)
+
+    assert cfg.update_repo_url == "https://github.com/meyer-productions/pi-streamer.git"
+    assert cfg.srt_url == "srt://behalten"
+    # dauerhaft gespeichert, nicht nur im Speicher
+    assert '"https://github.com/meyer-productions/pi-streamer.git"' in path.read_text(encoding="utf-8")
+
+
+def test_load_keeps_custom_update_source(tmp_path):
+    path = tmp_path / "config.json"
+    save_config(StreamerConfig(update_repo_url="https://github.com/jemand/fork.git"), path)
+
+    assert load_config(path).update_repo_url == "https://github.com/jemand/fork.git"

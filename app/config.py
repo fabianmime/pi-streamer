@@ -27,8 +27,18 @@ VALID_LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR")
 VALID_RECORDING_FORMATS = ("wav", "flac", "mka")
 DEFAULT_WEB_PORT = 80
 DEFAULT_RECORDING_FILENAME_PREFIX = "Aufnahme"
-DEFAULT_UPDATE_REPO_URL = "https://github.com/fabianmime/pi-streamer.git"
+DEFAULT_UPDATE_REPO_URL = "https://github.com/meyer-productions/pi-streamer.git"
 DEFAULT_UPDATE_BRANCH = "main"
+# Frühere Adressen der Update-Quelle (Repo am 28.10.2026 von fabianmime nach
+# meyer-productions umgezogen). Gespeicherte Konfigurationen mit einer dieser
+# URLs werden beim Laden automatisch auf DEFAULT_UPDATE_REPO_URL umgestellt.
+LEGACY_UPDATE_REPO_URLS = frozenset(
+    {
+        "https://github.com/fabianmime/pi-streamer.git",
+        "https://github.com/fabianmime/pi-streamer",
+        "git@github.com:fabianmime/pi-streamer.git",
+    }
+)
 
 logger = logging.getLogger(__name__)
 
@@ -139,6 +149,16 @@ def _read_config_file(path: Path) -> StreamerConfig:
     return StreamerConfig(**filtered)
 
 
+def _migrate(cfg: StreamerConfig) -> bool:
+    """Stellt veraltete Werte aus älteren Konfigurationen um. True, wenn
+    sich etwas geändert hat."""
+    if cfg.update_repo_url.strip() in LEGACY_UPDATE_REPO_URLS:
+        logger.info("Update-Quelle %s -> %s umgestellt", cfg.update_repo_url, DEFAULT_UPDATE_REPO_URL)
+        cfg.update_repo_url = DEFAULT_UPDATE_REPO_URL
+        return True
+    return False
+
+
 def _backup_path(path: Path) -> Path:
     return path.with_suffix(".json.bak")
 
@@ -153,16 +173,27 @@ def load_config(path: Path = DEFAULT_CONFIG_PATH) -> StreamerConfig:
         return cfg
 
     try:
-        return _read_config_file(path)
+        cfg = _read_config_file(path)
     except (OSError, ValueError, TypeError) as exc:
         backup = _backup_path(path)
         logger.error("Konfiguration %s nicht lesbar (%s) - versuche Sicherung %s", path, exc, backup)
         if backup.exists():
             try:
-                return _read_config_file(backup)
+                cfg = _read_config_file(backup)
+                _migrate(cfg)
+                return cfg
             except (OSError, ValueError, TypeError) as backup_exc:
                 logger.error("Auch Sicherung nicht lesbar (%s) - starte mit Standardwerten", backup_exc)
         return StreamerConfig()
+
+    if _migrate(cfg):
+        # Gleich dauerhaft speichern, damit die Datei auf dem Gerät zum
+        # angezeigten Stand passt.
+        try:
+            save_config(cfg, path)
+        except OSError as exc:
+            logger.warning("Migrierte Konfiguration nicht gespeichert: %s", exc)
+    return cfg
 
 
 def _write_durable(path: Path, content: str) -> None:

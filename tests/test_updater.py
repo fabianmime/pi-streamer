@@ -200,3 +200,16 @@ def test_missing_source_reports_error(tmp_path):
     updater = Updater(app_dir=_device_dir(tmp_path), runner=_Recorder(), restart=lambda: None)
     with pytest.raises(UpdateError):
         updater.check("", "main")
+
+
+def test_fetch_points_origin_to_update_source(tmp_path, remote):
+    bare, _work = remote
+    device = _device_dir(tmp_path)
+    updater = Updater(app_dir=device, runner=_Recorder(), restart=lambda: None)
+    updater.install(str(bare), "main", is_busy=lambda: False)
+    # Gerät, das noch per git clone vom alten Repo-Ort stammt
+    _git(device, "remote", "add", "origin", "https://github.com/fabianmime/pi-streamer.git")
+
+    updater.check(str(bare), "main")
+
+    assert _git(device, "remote", "get-url", "origin") == str(bare)

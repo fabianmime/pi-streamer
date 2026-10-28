@@ -208,7 +208,7 @@ def test_settings_post_saves_new_fields(client, app):
         data={
             "recording_format": "flac",
             "stream_auto_reconnect": "1",
-            "update_repo_url": "https://github.com/fabianmime/pi-streamer.git",
+            "update_repo_url": "https://github.com/meyer-productions/pi-streamer.git",
             "update_branch": "main",
             "update_auto": "1",
         },
